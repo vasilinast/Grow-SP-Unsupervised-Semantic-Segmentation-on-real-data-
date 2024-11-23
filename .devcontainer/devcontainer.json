@@ -1,0 +1,13 @@
+{
+  "name": "growsp-dev-container",
+  "image": "yarinpour/growsp",  // Use your existing image here
+  "runArgs": [
+    "--gpus", "all"
+  ],
+  "workspaceFolder": "/workspace",
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspace,type=bind"
+  ],
+  "remoteUser": "root"
+}
+
