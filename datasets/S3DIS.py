@@ -125,7 +125,7 @@ class S3DIStrain(Dataset):
         scale = 1 / self.args.voxel_size
         coords = np.floor(coords * scale)
         coords, feats, labels, unique_map, inverse_map = ME.utils.sparse_quantize(np.ascontiguousarray(coords), feats, labels=labels, ignore_label=-1, return_index=True, return_inverse=True)
-        return coords, feats, labels, unique_map, clip_inds, inverse_map
+        return coords.astype(np.float32), feats, labels, unique_map, clip_inds, inverse_map.astype(np.float32)
 
 
     def __len__(self):

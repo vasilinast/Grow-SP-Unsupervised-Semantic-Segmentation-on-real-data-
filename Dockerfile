@@ -1,5 +1,5 @@
 # Use your MinkowskiEngine image as the base
-FROM yarinpour/minkowski_engine
+FROM yarinpour/minkowski_engine1
 
 # Install system dependencies
 RUN apt-get update && \
@@ -29,3 +29,4 @@ RUN conda env create -f /tmp/env.yml && conda clean -a
 
 # Set the entrypoint to use the growsp environment
 ENTRYPOINT ["conda", "run", "-n", "growsp", "/bin/bash"]
+

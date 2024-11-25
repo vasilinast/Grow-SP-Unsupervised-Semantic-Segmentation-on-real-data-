@@ -310,9 +310,6 @@ if __name__ == '__main__':
         print(torch.__version__)
         print(torch.version.cuda)
         print(ME.__version__)
-        raise KeyError
-
-
     else:
         print("CUDA is not available. CPU will be used.")
 
