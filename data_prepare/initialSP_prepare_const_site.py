@@ -31,25 +31,48 @@ colormap.append((0, 0, 0, 0))
 colormap = np.array(colormap)
 import argparse
 
+# =================== Predefined Parameters ===================
+
+ignore_label = 12
+voxel_size = 0.2
+vis = True
+
+#VCCS
+#https://pcl.readthedocs.io/projects/tutorials/en/latest/supervoxel_clustering.html
+supervoxel_resolution = 0.2 #determines the leaf size of the underlying octree structure (in meters)
+supervoxel_seed_resolution = 0.5 #determines seed resolution
+spatial_importance = 0.6 #higher values will result in supervoxels with very regular shapes 
+normal_importance = 1.5 #how much surface normals will influence the shape of the supervoxels
+color_importance = 0.4 #how much color will influence the shape of the supervoxels
+
+#Region growing
+#https://pcl.readthedocs.io/projects/tutorials/en/master/region_growing_segmentation.html
+region_growing_min_size = 10 ##after the segmentation is done all clusters that have less points than minimum(or have more than maximum) will be discarded. The default values for minimum and maximum are 1 and ‘as much as possible’ respectively.
+region_growing_max_size = 10000000
+region_growing_neighbors = 10
+region_growing_smooth_threshold = 3.0 #* 180.0/np.pi
+region_growing_curvature_threshold = 1
+region_growing_residual_threshold = 1
+
+
+# =================== Argument Parser ===================
+
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_path', type=str, default='data/S3DIS/input', help='raw data path')
+parser.add_argument('--input_path', type=str, default='data/construct_site/input/test', help='raw data path')
 parser.add_argument('--sp_path', type=str, default='data/construct_site/initial_superpoints')
 args = parser.parse_args()
 
-ignore_label = 12
-voxel_size = 0.05
-vis = True
-
+# =================== Functions ===================
 
 def supervoxel_clustering(coords, rgb=None):
     pc = pcl.PointCloud.PointXYZRGBA(coords, rgb)
     normals = pc.compute_normals(radius=3, num_threads=2)
-    vox = pcl.segmentation.SupervoxelClustering.PointXYZRGBA(voxel_resolution=1, seed_resolution=10)
+    vox = pcl.segmentation.SupervoxelClustering.PointXYZRGBA(voxel_resolution=supervoxel_resolution, seed_resolution=supervoxel_seed_resolution)
     vox.setInputCloud(pc)
     vox.setNormalCloud(normals)
-    vox.setSpatialImportance(0.4)
-    vox.setNormalImportance(1)
-    vox.setColorImportance(0.2)
+    vox.setSpatialImportance(spatial_importance)
+    vox.setNormalImportance(normal_importance)
+    vox.setColorImportance(color_importance)
     output = pcl.vectors.map_uint32t_PointXYZRGBA()
     vox.extract(output)
     return list(output.items())
@@ -57,8 +80,8 @@ def supervoxel_clustering(coords, rgb=None):
 def region_growing_simple(coords):
     pc = pcl.PointCloud.PointXYZ(coords)
     normals = pc.compute_normals(radius=3, num_threads=2)
-    clusters = pclpy.region_growing(pc, normals=normals, min_size=1, max_size=100000, n_neighbours=15,
-                                    smooth_threshold=3, curvature_threshold=1, residual_threshold=1)
+    clusters = pclpy.region_growing(pc, normals=normals, min_size=region_growing_min_size, max_size=region_growing_max_size, n_neighbours=region_growing_neighbors,
+                                    smooth_threshold=region_growing_smooth_threshold, curvature_threshold=region_growing_curvature_threshold, residual_threshold=region_growing_residual_threshold)
     return clusters, normals.normals
 
 
