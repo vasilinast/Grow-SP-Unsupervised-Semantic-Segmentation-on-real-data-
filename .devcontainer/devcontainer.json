@@ -1,6 +1,6 @@
 {
   "name": "growsp-dev-container",
-  "image": "yarinpour/growsp1",
+  "image": "yarinpour/growsp_nvidia",
   "runArgs": [
     "--gpus", "all"
   ],
@@ -8,6 +8,5 @@
   "mounts": [
     "source=${localWorkspaceFolder},target=/workspace,type=bind"
   ],
-  "remoteUser": "root",
-  "postCreateCommand": "pip install scikit-learn==0.22.2 open3d"
+  "postStartCommand": "source ~/.bashrc && conda activate growsp"
 }
