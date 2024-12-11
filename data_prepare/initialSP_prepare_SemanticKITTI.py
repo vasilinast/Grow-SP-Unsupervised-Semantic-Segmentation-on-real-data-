@@ -29,8 +29,8 @@ colormap = np.array(colormap)
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_path', type=str, default='data/SemanticKITTI/dataset/sequences', help='raw data path')
-parser.add_argument('--sp_path', type=str, default='data/SemanticKITTI/initial_superpoints/sequences')
+parser.add_argument('--input_path', type=str, default='data/construct_site/input/test', help='raw data path')
+parser.add_argument('--sp_path', type=str, default='data/construct_site/initial_superpoints')
 args = parser.parse_args()
 
 vis = True
@@ -47,8 +47,8 @@ def construct_superpoints(path):
     f = Path(path)
     data = read_ply(f)
     coords = np.vstack((data['x'], data['y'], data['z'])).T.copy()
-    labels = data['class'].copy()
-    labels -= 1
+    #labels = data['class'].copy()
+    #labels -= 1
     coords = coords.astype(np.float32)
     coords -= coords.mean(0)
 
@@ -58,16 +58,18 @@ def construct_superpoints(path):
     '''RANSAC'''
     road_index = ransac(coords)
     other_index = []
+    print("starting ransac..")
     for i in range(coords.shape[0]):
         if i not in road_index:
             other_index.append(i)
+    print("starting dbscan")
     other_index = np.array(other_index)
     other_coords = coords[other_index]  # *self.voxel_size
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(other_coords)
     other_region_idx = np.array(pcd.cluster_dbscan(eps=0.2, min_points=1))
 
-    sp_labels = -np.ones_like(labels)
+    sp_labels = -np.ones(coords.shape[0], dtype=np.int32)
     sp_labels[other_index] = other_region_idx
     sp_labels[road_index] = other_region_idx.max() + 1
     #
@@ -76,6 +78,7 @@ def construct_superpoints(path):
     np.save(join(args.sp_path, name[:-4]+'_superpoint.npy'), sp_labels)
 
     if vis:
+        print("starting visualization..")
         vis_path = join(args.sp_path, 'vis', f.parts[-2])
         if not os.path.exists(vis_path):
             os.makedirs(vis_path)
@@ -87,30 +90,26 @@ def construct_superpoints(path):
         out_coords = np.vstack((data['x'], data['y'], data['z'])).T
         write_ply(vis_path + '/' + f.name, [out_coords, colors], ['x', 'y', 'z', 'red', 'green', 'blue'])
 
-    sp2gt = -np.ones_like(labels)
-    for sp in np.unique(sp_labels):
-        if sp != -1:
-            sp_mask = sp == sp_labels
-            sp2gt[sp_mask] = stats.mode(labels[sp_mask])[0][0]
+    #sp2gt = -np.ones_like(coords.shape[0])
+    #for sp in np.unique(sp_labels):
+    #    if sp != -1:
+    #        sp_mask = sp == sp_labels
+    #        sp2gt[sp_mask] = stats.mode(labels[sp_mask])[0][0]
 
     print('completed scene: {}, used time: {:.2f}s'.format(name, time.time() - time_start))
     return (labels, sp2gt)
 
 
 print('start constructing initial superpoints')
-trainval_path_list, test_path_list = [], []
+# Get a single list of all .ply files in the input directory
+ply_files = np.sort(glob.glob(join(args.input_path, "*.ply")))
 
-seq_list = np.sort(os.listdir(args.input_path))
-for seq_id in seq_list:
-    seq_path = join(args.input_path, seq_id)
-    if int(seq_id) < 11:
-        for f in np.sort(os.listdir(seq_path)):
-            trainval_path_list.append(os.path.join(seq_path, f))
-    else:
-        for f in np.sort(os.listdir(seq_path)):
-            test_path_list.append(os.path.join(seq_path, f))
-pool = ProcessPoolExecutor(max_workers=16)
-result = list(pool.map(construct_superpoints, trainval_path_list))
+# Assign this list to be processed
+path_list = list(ply_files)
+print(path_list)
+
+pool = ProcessPoolExecutor(max_workers=1)
+result = list(pool.map(construct_superpoints, path_list))
 
 print('end constructing initial superpoints')
 
@@ -135,5 +134,5 @@ for IoU in IoUs:
     s += '{:5.2f} '.format(100 * IoU)
 print(' Acc: {:.5f}  Test IoU'.format(o_Acc), s)
 
-result = list(pool.map(construct_superpoints, test_path_list))
+#result = list(pool.map(construct_superpoints, test_path_list))
 print(' Acc: {:.5f}  Test IoU'.format(o_Acc), s)
