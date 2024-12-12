@@ -138,6 +138,7 @@ if __name__ == '__main__':
     #     if epoch%400==0:
     #         o_Acc, m_Acc, s = eval(epoch, args)
     #         print('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc), s)
+    all_preds = eval(400, args)
     print('all_preds collected: ')
     print(all_preds)
-    all_preds = eval(400, args)
+
