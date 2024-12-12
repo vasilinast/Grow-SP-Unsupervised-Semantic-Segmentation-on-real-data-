@@ -44,20 +44,37 @@ def eval_once(args, model, test_loader, classifier):
 
     all_preds, all_label = [], []
     for data in test_loader:
+        print('data: ', data)
+        
         with torch.no_grad():
-            coords, features, inverse_map, labels, index, region = data
 
+            coords, features, inverse_map, labels, index, region = data
+            print('coords: ', coords)   
+            print('features: ', features)
+            print('inverse_map: ', inverse_map)
+            print('labels: ', labels)
+            print('index: ', index)
+            print('region: ', region)
             in_field = ME.TensorField(coords[:, 1:] * args.voxel_size, coords, device=0)
+            print('in_field: ', in_field)
             feats = model(in_field)
+            print('feats: ', feats)
             feats = F.normalize(feats, dim=1)
 
             scores = F.linear(F.normalize(feats), F.normalize(classifier.weight))
+            print('scores: ', scores)
             preds = torch.argmax(scores, dim=1).cpu()
-
+            print('preds: ', preds)
+            print('preds: ', preds.shape)
             preds = preds[inverse_map.long()]
+            print('preds: ', preds)
+            print('preds: ', preds.shape)
             preds = preds[labels!=args.ignore_label]
+            print('preds: ', preds)
+            print('preds: ', preds.shape)
             # labels = labels[labels!=args.ignore_label]
             all_preds.append(preds)
+            print('all_preds len: ', len(all_preds))
             # all_label.append(labels)
 
             torch.cuda.empty_cache()
