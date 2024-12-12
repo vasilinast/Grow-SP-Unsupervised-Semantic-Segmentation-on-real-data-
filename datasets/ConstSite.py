@@ -287,7 +287,7 @@ class ConstSitetest(Dataset):
         print('self.args.sp_path:', self.args.sp_path)
         print(index)
         print('self.name[index]:', self.name[index])
-        region_file = self.args.sp_path + '/' +self.name[index] + '.npy'
+        region_file = self.args.sp_path + '/' +self.name[index].replace('.ply','.npy') 
         region = np.load(region_file)
 
         labels[labels == self.args.ignore_label] = -1
