@@ -280,9 +280,12 @@ class ConstSitetest(Dataset):
         coords = coords.astype(np.float32)
         coords -= coords.mean(0)
 
-        coords, colors, _, unique_map, inverse_map = self.voxelize(coords, colors, labels)
+        coords, colors, labels, unique_map, inverse_map = self.voxelize(coords, colors, labels)
         coords = coords.astype(np.float32)
-        region_file = self.args.sp_path + '/' +self.name[index] + '_superpoint.npy'
+        print('self.args.sp_path:', self.args.sp_path)
+        print(index)
+        print('self.name[index]:', self.name[index])
+        region_file = self.args.sp_path + '/' +self.name[index] + '.npy'
         region = np.load(region_file)
 
         labels[labels == self.args.ignore_label] = -1
