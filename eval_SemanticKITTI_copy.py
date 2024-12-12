@@ -114,7 +114,7 @@ def eval(epoch, args):
     classifier.eval()
 
     val_dataset = ConstSitetest(args)
-    val_loader = DataLoader(val_dataset, batch_size=1, collate_fn=cfl_collate_fn_test(), num_workers=args.cluster_workers, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=1, collate_fn=cfl_collate_fn_test(), num_workers=args.workers, pin_memory=True)
 
     # preds, labels = eval_once(args, model, val_loader, classifier)
     preds_res = eval_once(args, model, val_loader, classifier)
