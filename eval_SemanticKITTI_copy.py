@@ -18,9 +18,9 @@ import os
 ###
 def parse_args():
     parser = argparse.ArgumentParser(description='PyTorch Unsuper_3D_Seg')
-    parser.add_argument('--data_path', type=str, default='/extracted_data/DATA-HTCV/tests/test_data_PLY/',
+    parser.add_argument('--data_path', type=str, default='extracted_data/DATA-HTCV/tests/test_data_PLY/',
                         help='pont cloud data path')
-    parser.add_argument('--sp_path', type=str, default='/extracted_data/DATA-HTCV/tests/test_data_SP',
+    parser.add_argument('--sp_path', type=str, default='extracted_data/DATA-HTCV/tests/test_data_SP',
                         help='initial sp path')
     parser.add_argument('--save_path', type=str, default='trained_models/SemanticKITTI/',
                         help='model savepath')

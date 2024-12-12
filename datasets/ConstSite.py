@@ -242,6 +242,7 @@ class ConstSitetest(Dataset):
                                12: 'clutter'}
 
         folders = sorted(glob(join(self.args.data_path,  '*.ply')))
+        print('self.args.data_path:', self.args.data_path)
         print('folders: ',  folders)
         for _, file in enumerate(folders):
             print('file:', file)
