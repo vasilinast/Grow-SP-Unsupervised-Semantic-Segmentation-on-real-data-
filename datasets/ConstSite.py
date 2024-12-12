@@ -264,7 +264,9 @@ class ConstSitetest(Dataset):
         scale = 1 / self.args.voxel_size
         coords = np.floor(coords * scale)
         coords, feats, labels, unique_map, inverse_map = ME.utils.sparse_quantize(np.ascontiguousarray(coords), feats, labels=labels, ignore_label=-1, return_index=True, return_inverse=True)
-        return coords.numpy(), feats, labels, unique_map, inverse_map.numpy()
+        print('coords:', coords.dtype)
+        print('inverse_map:', inverse_map.dtype)
+        return coords, feats, labels, unique_map, inverse_map.numpy()
 
 
     def __len__(self):
