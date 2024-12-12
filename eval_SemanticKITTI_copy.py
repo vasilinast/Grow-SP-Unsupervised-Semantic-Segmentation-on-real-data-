@@ -117,8 +117,10 @@ def eval(epoch, args):
     val_loader = DataLoader(val_dataset, batch_size=1, collate_fn=cfl_collate_fn_test(), num_workers=args.cluster_workers, pin_memory=True)
 
     # preds, labels = eval_once(args, model, val_loader, classifier)
-    preds = eval_once(args, model, val_loader, classifier)
-    all_preds = torch.cat(preds).numpy()
+    preds_res = eval_once(args, model, val_loader, classifier)
+    print('preds_res: ', preds_res) 
+    preds = preds_res
+    all_preds = torch.cat(preds_res).numpy()
     # all_labels = torch.cat(labels).numpy()
 
     '''TODO: Implement the saving of the predictions to a file, such that they can be visualized in CC'''
