@@ -292,15 +292,14 @@ class ConstSitetest(Dataset):
         region = np.load(region_file)
 
         labels[labels == self.args.ignore_label] = -1
-        region[labels == -1] = -1
-        region = region[unique_map]
+        # region[labels == -1] = -1
+        # region = region[unique_map]
 
-        valid_region = region[region != -1]
-        unique_vals = np.unique(valid_region)
-        unique_vals.sort()
-        valid_region = np.searchsorted(unique_vals, valid_region)
-
-        region[region != -1] = valid_region
+        # valid_region = region[region != -1]
+        # unique_vals = np.unique(valid_region)
+        # unique_vals.sort()
+        # valid_region = np.searchsorted(unique_vals, valid_region)
+        # region[region != -1] = valid_region
 
         coords, feats, labels = self.augment_coords_to_feats(coords, colors/255-0.5, labels)
         return coords, feats, inverse_map, np.ascontiguousarray(labels), index, region
