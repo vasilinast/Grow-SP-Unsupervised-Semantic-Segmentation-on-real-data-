@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from datasets.ConstSite import ConstSitetest, class cfl_collate_fn_test:
+from datasets.ConstSite import ConstSitetest, cfl_collate_fn_test:
 
 import numpy as np
 import MinkowskiEngine as ME
