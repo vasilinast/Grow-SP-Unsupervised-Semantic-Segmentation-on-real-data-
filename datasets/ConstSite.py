@@ -266,7 +266,7 @@ class ConstSitetest(Dataset):
         coords, feats, labels, unique_map, inverse_map = ME.utils.sparse_quantize(np.ascontiguousarray(coords), feats, labels=labels, ignore_label=-1, return_index=True, return_inverse=True)
         print('coords:', coords.dtype)
         print('inverse_map:', inverse_map.dtype)
-        return coords, feats, labels, unique_map, inverse_map.numpy()
+        return coords, feats, labels, unique_map, inverse_map
 
 
     def __len__(self):
