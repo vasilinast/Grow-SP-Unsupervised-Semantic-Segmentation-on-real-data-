@@ -12,7 +12,7 @@ sys.path.append(ROOT_DIR)
 from lib.helper_ply import write_ply
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_path', type=str, default='/home/user/HDD/Stanford3dDataset_v1.2_Aligned_Version', help='raw data path')
+parser.add_argument('--data_path', type=str, default='/Stanford3dDataset_v1.2_Aligned_Version', help='raw data path')
 parser.add_argument('--processed_data_path', type=str, default='data/S3DIS/input')
 args = parser.parse_args()
 
