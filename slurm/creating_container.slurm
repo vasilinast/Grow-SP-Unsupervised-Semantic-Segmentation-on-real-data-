@@ -8,6 +8,7 @@
 #SBATCH --mem=16G
 #SBATCH --cpus-per-task=2
 
+
 # Load Singularity module
 module load singularity/4.0.2
 echo "loaded singularity"
