@@ -14,11 +14,11 @@ sys.path.append(ROOT_DIR)
 from lib.helper_ply import write_ply
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_path', type=str, default='/home/user/HDD/Stanford3dDataset_v1.2_Aligned_Version', help='raw data path')
-parser.add_argument('--processed_data_path', type=str, default='data/S3DIS/input')
+parser.add_argument('--data_path', type=str, default='Stanford3dDataset_v1.2_Aligned_Version', help='raw data path')
+parser.add_argument('--processed_data_path', type=str, default='/workspace/data/S3DIS/input')
 args = parser.parse_args()
 
-anno_paths = [line.rstrip() for line in open(join(BASE_DIR, 'S3DIS_anno_paths.txt'))]
+anno_paths = [line.rstrip() for line in open(join(BASE_DIR, 'S3DIS_anno_paths_dummy.txt'))]
 anno_paths = [join(args.data_path, p) for p in anno_paths]
 
 gt_class = [x.rstrip() for x in open(join(BASE_DIR, 'S3DIS_class_names.txt'))]
@@ -32,17 +32,12 @@ out_format = '.ply'
 
 def convert_pc2ply(anno_path, file_name):
     data_list = []
-    print(anno_path)
-    print(glob.glob(join(anno_path, '*.txt')))
     for f in glob.glob(join(anno_path, '*.txt')):
-        print('f:', f)
         class_name = os.path.basename(f).split('_')[0]
         if class_name not in gt_class:  # note: in some room there is 'staris' class..
             class_name = 'clutter'
         pc = pd.read_csv(f, header=None, delim_whitespace=True).values
-        print('pc:', pc.shape)
         labels = np.ones((pc.shape[0], 1)) * gt_class2label[class_name]
-        print('labels:', labels.shape)
         data_list.append(np.concatenate([pc, labels], 1))
 
     pc_info = np.concatenate(data_list, 0)
