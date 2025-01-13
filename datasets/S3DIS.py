@@ -225,6 +225,8 @@ class S3DIStest(Dataset):
                                12: 'clutter'}
 
         folders = sorted(glob(join(self.args.data_path,  '*.ply')))
+        # print('folders in S3DIStest Dataset class')
+        # print(folders)
         for _, file in enumerate(folders):
             plyname = file.replace(self.args.data_path, '')
             if plyname[1:7] in areas:
@@ -247,8 +249,8 @@ class S3DIStest(Dataset):
         scale = 1 / self.args.voxel_size
         coords = np.floor(coords * scale)
         coords, feats, labels, unique_map, inverse_map = ME.utils.sparse_quantize(np.ascontiguousarray(coords), feats, labels=labels, ignore_label=-1, return_index=True, return_inverse=True)
-        return coords.numpy(), feats, labels, unique_map, inverse_map.numpy()
-
+        # return coords.numpy(), feats, labels, unique_map, inverse_map.numpy()
+        return coords.astype(np.float32), feats, labels, unique_map, inverse_map.astype(np.float32)
 
     def __len__(self):
         return len(self.file)

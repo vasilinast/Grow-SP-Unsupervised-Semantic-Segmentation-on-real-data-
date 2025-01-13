@@ -8,19 +8,21 @@ from sklearn.utils.linear_assignment_ import linear_assignment  # pip install sc
 from sklearn.cluster import KMeans
 from models.fpn import Res16FPN18
 from lib.utils import get_fixclassifier
+from lib.helper_ply import read_ply, write_ply
 import warnings
 import argparse
 import os
 warnings.filterwarnings('ignore')
+import matplotlib.pyplot as plt
 
 ###
 def parse_args():
     parser = argparse.ArgumentParser(description='PyTorch Unsuper_3D_Seg')
-    parser.add_argument('--data_path', type=str, default='data/S3DIS/input',
+    parser.add_argument('--data_path', type=str, default='/workspace/data/S3DIS/input',
                         help='pont cloud data path')
-    parser.add_argument('--sp_path', type=str, default='data/S3DIS/initial_superpoints',
+    parser.add_argument('--sp_path', type=str, default='/workspace/data/S3DIS/initial_superpoints',
                         help='initial superpoint path')
-    parser.add_argument('--save_path', type=str, default='trained_models/S3DIS/',
+    parser.add_argument('--save_path', type=str, default='/workspace/trained_models/S3DIS/',
                         help='model savepath')
     ###
     parser.add_argument('--bn_momentum', type=float, default=0.02, help='batchnorm parameters')
@@ -37,17 +39,50 @@ def parse_args():
     parser.add_argument('--ignore_label', type=int, default=-1, help='invalid label')
     return parser.parse_args()
 
+colormap = []
+for _ in range(1000):
+    for k in range(12):
+        colormap.append(plt.cm.Set3(k))
+    for k in range(9):
+        colormap.append(plt.cm.Set1(k))
+    for k in range(8):
+        colormap.append(plt.cm.Set2(k))
+colormap.append((0, 0, 0, 0))
+colormap = np.array(colormap)
 
 def eval_once(args, model, test_loader, classifier, use_sp=False):
 
     all_preds, all_label = [], []
+    # print('in eval_once')
     for data in test_loader:
+        # print('looping over data')
         with torch.no_grad():
             coords, features, inverse_map, labels, index, region = data
+            index = index[0]
+            # print('data index?')
+            # print(index)
+            # print(dir(test_loader.dataset))
+            file = test_loader.dataset.file[index]
+            name = test_loader.dataset.name[index]
+            # print('file_name: ', file, ' ', name)
+            # print('coords')
+            # print(coords.shape)
+            # print(coords[:3,:])
+            # print(np.unique(coords[:,0]))
+            # print(np.unique(coords[:,1]))
+            # print(np.unique(coords[:,2]))
+            # print(np.unique(coords[:,3]))
+            data = read_ply(file)
+            # print(features.shape)
 
             in_field = ME.TensorField(features, coords, device=0)
+            # print('in_field')
+            # print(in_field.shape)
             feats = model(in_field)
+            # print('feats')
+            # print(feats.shape)
             feats = F.normalize(feats, dim=1)
+            # print(feats.shape)
 
             region = region.squeeze()
             #
@@ -71,10 +106,31 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
                         preds[valid_mask] = torch.argmax(region_scores, dim=1).cpu()[region_no]
                         region_no +=1
             else:
+                # print('in else')
                 scores = F.linear(F.normalize(feats), F.normalize(classifier.weight))
                 preds = torch.argmax(scores, dim=1).cpu()
+                # print('preds')
+                # print(preds)
+                # print(preds.shape)
+                # print(preds.dtype)
+
 
             preds = preds[inverse_map.long()]
+            vis_path = '/workspace/data/S3DIS/segmentation_models/S3DIS_GrowSP/'
+            coords =  np.vstack((data['x'], data['y'], data['z'])).T
+            if not os.path.exists(vis_path):
+                os.makedirs(vis_path)
+            colors = np.zeros_like(coords)
+            for p in range(coords.shape[0]):
+                # print(p)
+                # print(preds[p])
+                # print(preds[p].item())
+                colors[p] = 255 * (colormap[preds[p].item()])[:3]
+            colors = colors.astype(np.uint8)
+ 
+            write_ply(vis_path + name+'_segmented', [coords, colors], ['x', 'y', 'z', 'red', 'green', 'blue'])
+            # print(preds.shape)
+            # print(np.unique(preds))
             all_preds.append(preds[labels!=args.ignore_label]), all_label.append(labels[[labels!=args.ignore_label]])
 
     return all_preds, all_label
@@ -85,7 +141,6 @@ def eval(epoch, args, test_areas = ['Area_5']):
     # First model and cls variables are set. The model variable holds the feature extraction model (I think) and the cls variable stores s-centroids classifier
     # used during training by clustering all superpoints across all point clouds into S semantic primatives (300) to create pseudo labels for training the feature 
     # extraction model.
-
 
     model = Res16FPN18(in_channels=args.input_dim, out_channels=args.primitive_num, conv1_kernel_size=args.conv1_kernel_size, config=args).cuda()
     # initializing an empty/generic model with correct input and output dimensions 
@@ -135,7 +190,8 @@ def eval(epoch, args, test_areas = ['Area_5']):
     # where the region variable is used.
 
     preds, labels = eval_once(args, model, test_loader, classifier)
-    # eval_once (defined aboe) creates 
+    # eval_once (defined aboe) classifies each point in the test data (test_loader) with the C-centroids classifier_variable, by first extracting feature from 
+    # model trained in the training phase. 
     all_preds = torch.cat(preds).numpy()
     all_labels = torch.cat(labels).numpy()
 
