@@ -258,6 +258,9 @@ class S3DIStest(Dataset):
     def __getitem__(self, index):
         data = read_ply(self.file[index])
         coords, colors, labels = np.vstack((data['x'], data['y'], data['z'])).T, np.vstack((data['red'], data['green'], data['blue'])).T, data['class']
+        print('coords')
+        print(coords.shape)
+        print(labels.shape)
         colors = colors.astype(np.float32)
         coords = coords.astype(np.float32)
         coords -= coords.mean(0)

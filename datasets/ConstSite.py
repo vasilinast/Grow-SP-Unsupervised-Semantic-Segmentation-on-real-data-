@@ -13,8 +13,6 @@ from os.path import join
 class cfl_collate_fn:
 
     def __call__(self, list_data):
-        print('list_data:', list_data)
-        print('list_data[0]:', list_data[0])
         coords, feats, normals, labels, inverse_map, pseudo, inds, region, index = list(zip(*list_data))
         coords_batch, feats_batch, normal_batch, labels_batch, inverse_batch, pseudo_batch, inds_batch = [], [], [], [], [], [], []
         region_batch = []
@@ -265,8 +263,6 @@ class ConstSitetest(Dataset):
         scale = 1 / self.args.voxel_size
         coords = np.floor(coords * scale)
         coords, feats, labels, unique_map, inverse_map = ME.utils.sparse_quantize(np.ascontiguousarray(coords), feats, labels=labels, ignore_label=-1, return_index=True, return_inverse=True)
-        print('coords:', coords.dtype)
-        print('inverse_map:', inverse_map.dtype)
         return coords, feats, labels, unique_map, inverse_map
 
 
@@ -275,22 +271,28 @@ class ConstSitetest(Dataset):
 
     def __getitem__(self, index):
         data = read_ply(self.file[index])
+        # print('self.name[index]:', self.name[index])
         # coords, colors, labels = np.vstack((data['x'], data['y'], data['z'])).T, np.vstack((data['red'], data['green'], data['blue'])).T, data['class']
         coords, colors = np.vstack((data['x'], data['y'], data['z'])).T, np.vstack((data['red'], data['green'], data['blue'])).T
-        print(f"data['y'] dtype: {data['y'].dtype}, shape: {data['y'].shape}")
-        labels = -np.ones_like(data['y']) 
+        labels = np.ones_like(data['y']) 
+        # print('coords in __getitem__')
+        # print(coords.shape)
+        # print(labels.shape)
         colors = colors.astype(np.float32)
         coords = coords.astype(np.float32)
         coords -= coords.mean(0)
 
         coords, colors, labels, unique_map, inverse_map = self.voxelize(coords, colors, labels)
+        # print('coords after voxelize')
+        # print(coords.shape)
+        # print(labels.shape)
         coords = coords.astype(np.float32)
-        print('self.args.sp_path:', self.args.sp_path)
-        print(index)
-        print('self.name[index]:', self.name[index])
-        region_file = self.args.sp_path + '/' +self.name[index].replace('_after_first_step.ply','_superpoint_after_second_step.npy') 
-        region = np.load(region_file)
-
+        # print('self.args.sp_path:', self.args.sp_path)
+        # print(index)
+        # print('self.name[index]:', self.name[index])
+        # region_file = self.args.sp_path + '/' +self.name[index].replace('_after_first_step.ply','_superpoint_after_second_step.npy') 
+        # region = np.load(region_file)
+        region = np.ones_like(data['y']) 
         labels[labels == self.args.ignore_label] = -1
         # region[labels == -1] = -1
         # region = region[unique_map]
@@ -302,6 +304,10 @@ class ConstSitetest(Dataset):
         # region[region != -1] = valid_region
 
         coords, feats, labels = self.augment_coords_to_feats(coords, colors/255-0.5, labels)
+        # print('coords after augment!!!!!')
+        # print(coords.shape)
+        # print(feats.shape)
+        # print(labels.shape)
         return coords, feats, inverse_map, np.ascontiguousarray(labels), index, region
 
 

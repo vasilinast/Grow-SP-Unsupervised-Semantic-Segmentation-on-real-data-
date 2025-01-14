@@ -129,8 +129,8 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
             colors = colors.astype(np.uint8)
  
             write_ply(vis_path + name+'_segmented', [coords, colors], ['x', 'y', 'z', 'red', 'green', 'blue'])
-            # print(preds.shape)
-            # print(np.unique(preds))
+            print(preds.shape)
+            print(np.unique(preds))
             all_preds.append(preds[labels!=args.ignore_label]), all_label.append(labels[[labels!=args.ignore_label]])
 
     return all_preds, all_label
