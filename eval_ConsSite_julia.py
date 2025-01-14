@@ -1,8 +1,6 @@
 import torch
 import torch.nn.functional as F
-from datasets.S3DIS import S3DIStest, cfl_collate_fn_test
 from datasets.ConstSite import ConstSitetest, cfl_collate_fn_test
-
 import numpy as np
 import MinkowskiEngine as ME
 from torch.utils.data import DataLoader
@@ -126,7 +124,7 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
             # print(inverse_map.shape)
             preds = preds[inverse_map.long()]
             labels = labels[inverse_map.long()]
-            vis_path = '/workspace/data/test_data/S3DIS_GrowSP/'
+            vis_path = '/workspace/data/test_data/'
             coords =  np.vstack((data['x'], data['y'], data['z'])).T
             if not os.path.exists(vis_path):
                 os.makedirs(vis_path)
@@ -139,7 +137,7 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
             colors = colors.astype(np.uint8)
  
             
-            write_ply(vis_path + name, [coords, colors], ['x', 'y', 'z', 'red', 'green', 'blue'])
+            write_ply(vis_path + 'S3DIS_'+name, [coords, colors], ['x', 'y', 'z', 'red', 'green', 'blue'])
             print('preds again')
             print(preds.shape)
             print('labels')
@@ -149,8 +147,11 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
             print(args.ignore_label)
             all_preds.append(preds[labels!=args.ignore_label]), all_label.append(labels[[labels!=args.ignore_label]])
             print('all_preds')
-            print(len(all_preds))
             print(all_preds)
+            print(type(all_preds))
+            print(len(all_preds))
+            print(type(all_preds[0]))
+            print(type(all_preds[0][0]))
 
     return all_preds, all_label
 

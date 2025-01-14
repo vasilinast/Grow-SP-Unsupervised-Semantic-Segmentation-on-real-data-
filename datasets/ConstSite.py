@@ -244,7 +244,7 @@ class ConstSitetest(Dataset):
         print('folders: ',  folders)
         for _, file in enumerate(folders):
             print('file:', file)
-            name = file.replace(self.args.data_path, '')
+            name = file.replace(self.args.data_path+'/', '')
             self.name.append(name)
             self.file.append(file)
         

@@ -1,6 +1,8 @@
 import torch
 import torch.nn.functional as F
+# from datasets.ScanNet import Scannetval, cfl_collate_fn_val
 from datasets.ConstSite import ConstSitetest, cfl_collate_fn_test
+
 import numpy as np
 import MinkowskiEngine as ME
 from torch.utils.data import DataLoader
@@ -9,11 +11,10 @@ from sklearn.cluster import KMeans
 from models.fpn import Res16FPN18
 from lib.utils import get_fixclassifier
 from lib.helper_ply import read_ply, write_ply
-import warnings
 import argparse
-import random
-import os
 import matplotlib.pyplot as plt
+import os
+
 
 ###
 def parse_args():
@@ -24,19 +25,19 @@ def parse_args():
                         help='pont cloud data path')
     parser.add_argument('--sp_path', type=str, default='',
                         help='initial superpoint path')
-    parser.add_argument('--save_path', type=str, default='trained_models/SemanticKITTI/',
+    parser.add_argument('--save_path', type=str, default='/workspace/trained_models/ScanNet/',
                         help='model savepath')
     ###
     parser.add_argument('--bn_momentum', type=float, default=0.02, help='batchnorm parameters')
     parser.add_argument('--conv1_kernel_size', type=int, default=5, help='kernel size of 1st conv layers')
     ####
     parser.add_argument('--workers', type=int, default=10, help='how many workers for loading data')
-    parser.add_argument('--cluster_workers', type=int, default=10, help='how many workers for loading data in clustering')
+    parser.add_argument('--cluster_workers', type=int, default=4, help='how many workers for loading data in clustering')
     parser.add_argument('--seed', type=int, default=2022, help='random seed')
-    parser.add_argument('--voxel_size', type=float, default=0.15, help='voxel size in SparseConv')
-    parser.add_argument('--input_dim', type=int, default=3, help='network input dimension')### 6 for XYZGB
-    parser.add_argument('--primitive_num', type=int, default=500, help='how many primitives used in training')
-    parser.add_argument('--semantic_class', type=int, default=19, help='ground truth semantic class')
+    parser.add_argument('--voxel_size', type=float, default=0.05, help='voxel size in SparseConv')
+    parser.add_argument('--input_dim', type=int, default=6, help='network input dimension')### 6 for XYZGB
+    parser.add_argument('--primitive_num', type=int, default=300, help='how many primitives used in training')
+    parser.add_argument('--semantic_class', type=int, default=20, help='ground truth semantic class')
     parser.add_argument('--feats_dim', type=int, default=128, help='output feature dimension')
     parser.add_argument('--ignore_label', type=int, default=-1, help='invalid label')
     return parser.parse_args()
@@ -52,7 +53,8 @@ for _ in range(1000):
 colormap.append((0, 0, 0, 0))
 colormap = np.array(colormap)
 
-def eval_once(args, model, test_loader, classifier,use_sp=False):
+def eval_once(args, model, test_loader, classifier, use_sp=False):
+
 
     all_preds, all_label = [], []
     print('in eval_once')
@@ -61,8 +63,8 @@ def eval_once(args, model, test_loader, classifier,use_sp=False):
         with torch.no_grad():
             coords, features, inverse_map, labels, index, region = data
             index = index[0]
-            print('data index?')
-            print(index)
+            # print('data index?')
+            # print(index)
             # print(dir(test_loader.dataset))
             file = test_loader.dataset.file[index]
             name = test_loader.dataset.name[index]
@@ -73,16 +75,14 @@ def eval_once(args, model, test_loader, classifier,use_sp=False):
             print(labels.shape)
             print(inverse_map.shape)
             # print(coords[:3,:])
-            print(np.unique(coords[:,0]))
-            print(np.unique(coords[:,1]))
-            print(np.unique(coords[:,2]))
-            print(np.unique(coords[:,3]))
-            print(coords[:, 1:].shape)
+            # print(np.unique(coords[:,0]))
+            # print(np.unique(coords[:,1]))
+            # print(np.unique(coords[:,2]))
+            # print(np.unique(coords[:,3]))
             data = read_ply(file)
             # print(features.shape)
 
-            # in_field = ME.TensorField(features, coords, device=0)
-            in_field = ME.TensorField(coords[:, 1:] * args.voxel_size, coords, device=0)
+            in_field = ME.TensorField(features, coords, device=0)
             print('in_field')
             print(type(in_field))
             print(in_field.shape)
@@ -139,17 +139,15 @@ def eval_once(args, model, test_loader, classifier,use_sp=False):
             colors = colors.astype(np.uint8)
  
             
-            write_ply(vis_path + 'SeemanticKITTI_'+name, [coords, colors], ['x', 'y', 'z', 'red', 'green', 'blue'])
+            write_ply(vis_path + 'ScanNet_'+name, [coords, colors], ['x', 'y', 'z', 'red', 'green', 'blue'])
             print('preds again')
             print(preds.shape)
-            print(preds)
             print('labels')
             print(labels.shape)
             print(np.unique(preds))
             print(np.unique(labels))
             print(args.ignore_label)
-            all_preds.append(preds[labels!=args.ignore_label])
-            all_label.append(labels[[labels!=args.ignore_label]])
+            all_preds.append(preds[labels!=args.ignore_label]), all_label.append(labels[[labels!=args.ignore_label]])
             print('all_preds')
             print(all_preds)
             print(type(all_preds))
@@ -160,24 +158,19 @@ def eval_once(args, model, test_loader, classifier,use_sp=False):
     return all_preds, all_label
 
 
-
 def eval(epoch, args):
 
-    # model trained in training phase used in eval_once() to extract point features for each point cloud and cluster them
     model = Res16FPN18(in_channels=args.input_dim, out_channels=args.primitive_num, conv1_kernel_size=args.conv1_kernel_size, config=args).cuda()
     model.load_state_dict(torch.load(os.path.join(args.save_path, 'model_' + str(epoch) + '_checkpoint.pth')))
     model.eval()
-    # .eval() just sets the mode od the model for evaluation not storing gradients and stuff like batch normalization
 
-    # cls stores the features of the semantic primitives (roughly 300-500) which were derived from clustering all the points in the training set (i think across all training data)
     cls = torch.nn.Linear(args.feats_dim, args.primitive_num, bias=False).cuda()
     cls.load_state_dict(torch.load(os.path.join(args.save_path, 'cls_' + str(epoch) + '_checkpoint.pth')))
     cls.eval()
 
-    #the primatives are clustered (agian) into the desired number of semantic classes
-    primitive_centers = cls.weight.data###[500, 128]
+    primitive_centers = cls.weight.data###[300, 128]
     print('Merging Primitives')
-    cluster_pred = KMeans(n_clusters=args.semantic_class, n_init=5, random_state=0, n_jobs=5).fit_predict(primitive_centers.cpu().numpy())#.astype(np.float64))
+    cluster_pred = KMeans(n_clusters=args.semantic_class, n_init=10, random_state=0, n_jobs=10).fit_predict(primitive_centers.cpu().numpy())#.astype(np.float64))
 
     '''Compute Class Centers'''
     centroids = torch.zeros((args.semantic_class, args.feats_dim))
@@ -185,24 +178,16 @@ def eval(epoch, args):
         indices = cluster_pred ==cluster_idx
         cluster_avg = primitive_centers[indices].mean(0, keepdims=True)
         centroids[cluster_idx] = cluster_avg
-    
-    #the centroids of the desired number of classes (19 for S3Dis) are used to create a simple kmeans classifier 
+    # #
     centroids = F.normalize(centroids, dim=1)
     classifier = get_fixclassifier(in_channel=args.feats_dim, centroids_num=args.semantic_class, centroids=centroids).cuda()
     classifier.eval()
 
     val_dataset = ConstSitetest(args)
-    val_loader = DataLoader(val_dataset, batch_size=1, collate_fn=cfl_collate_fn_test(), num_workers=args.workers, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=1, collate_fn=cfl_collate_fn_test(), num_workers=args.cluster_workers, pin_memory=True)
 
-    # preds, labels = eval_once(args, model, val_loader, classifier)
-    preds_res, labels= eval_once(args, model, val_loader, classifier)
-    print("CONCATENATING PREDS")
-    print(type(preds_res))
-    print(len(preds_res))
-    print(type(preds_res[0]), type(preds_res[1]))
-    print(type(preds_res[0][0]), type(preds_res[1][0]))
-    all_preds = torch.cat(preds_res).numpy()
-    preds = preds_res
+    preds, labels = eval_once(args, model, val_loader, classifier)
+    all_preds = torch.cat(preds).numpy()
     all_labels = torch.cat(labels).numpy()
 
     '''Unsupervised, Match pred to gt'''
@@ -226,17 +211,15 @@ def eval(epoch, args):
     s = '| mIoU {:5.2f} | '.format(100 * m_IoU)
     for IoU in IoUs:
         s += '{:5.2f} '.format(100 * IoU)
-
     return o_Acc, m_Acc, s
+
+
 
 if __name__ == '__main__':
 
     args = parse_args()
-    # for epoch in range(1, 500):
-    #     if epoch%400==0:
-    #         o_Acc, m_Acc, s = eval(epoch, args)
-    #         print('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc), s)
-    all_preds = eval(400, args)
-    print('all_preds collected: ')
-    print(all_preds)
-
+    print(args)
+    for epoch in range(10, 1000):
+        if epoch%930==0:
+            o_Acc, m_Acc, s = eval(epoch, args)
+            print('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc), s)
