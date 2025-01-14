@@ -83,8 +83,9 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
             # print(features.shape)
 
             in_field = ME.TensorField(features, coords, device=0)
-            # print('in_field')
-            # print(in_field.shape)
+            print('in_field')
+            print(type(in_field))
+            print(in_field.shape)
             feats = model(in_field)
             print('feats')
             print(feats.shape)
@@ -116,10 +117,10 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
                 # print('in else')
                 scores = F.linear(F.normalize(feats), F.normalize(classifier.weight))
                 preds = torch.argmax(scores, dim=1).cpu()
-                print('preds')
+                print('preds after ARGMAX')
+                print(type(preds))
+                print(preds)
                 print(preds.shape)
-                print('scores')
-                print(scores.shape)
 
             # print('inv map')
             # print(inverse_map.shape)
@@ -150,7 +151,7 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
             print('all_preds')
             print(len(all_preds))
             print(all_preds)
-            
+
     return all_preds, all_label
 
 

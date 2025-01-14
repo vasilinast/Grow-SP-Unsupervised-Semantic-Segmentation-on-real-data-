@@ -109,10 +109,10 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
                 # print('in else')
                 scores = F.linear(F.normalize(feats), F.normalize(classifier.weight))
                 preds = torch.argmax(scores, dim=1).cpu()
-                # print('preds')
-                # print(preds)
-                # print(preds.shape)
-                # print(preds.dtype)
+                print('preds')
+                print(type(preds))
+                print(preds)
+                print(preds.shape)
 
 
             preds = preds[inverse_map.long()]
@@ -132,6 +132,9 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
             print(preds.shape)
             print(np.unique(preds))
             all_preds.append(preds[labels!=args.ignore_label]), all_label.append(labels[[labels!=args.ignore_label]])
+            print('all_preds')
+            print(len(all_preds))
+            print(all_preds)
 
     return all_preds, all_label
 
