@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import os, sys, glob
 import argparse
+from tile import tile
 
 BASE_DIR = dirname(abspath(__file__))
 ROOT_DIR = dirname(BASE_DIR)
@@ -14,7 +15,7 @@ from lib.helper_ply import write_ply
 
 # Define script arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_path', type=str, required=True, help='Path to raw .laz files')
+parser.add_argument('--data_path', type=str,default='raw_data_const_site/samples_2', help='Path to raw .laz files')
 parser.add_argument('--processed_data_path', type=str, default='data/construct_site/input', help='Path to save processed .ply files')
 parser.add_argument('--sub_grid_size', type=float, default=0.010, help='Sub-grid size for downsampling')
 args = parser.parse_args()
@@ -50,7 +51,14 @@ def process_laz_file(laz_file, output_file, sub_grid_size):
 
 # Main processing loop
 print("Starting processing...")
-laz_files = [join(args.data_path, f) for f in os.listdir(args.data_path) if f.endswith('.laz')]
+
+print("tiling...")
+tile_dir = join(args.data_path, "tiled")
+
+tile(input_folder=args.data_path, output_dir=tile_dir, size="55x58", crop_min_y=18)
+
+laz_files = [join(tile_dir, f) for f in os.listdir(tile_dir) if f.endswith('.laz') or f.endswith('.las')]
+print(laz_files)
 
 for laz_file in laz_files:
     print(f"Processing: {laz_file}")
