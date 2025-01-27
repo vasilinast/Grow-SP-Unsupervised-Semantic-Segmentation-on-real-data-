@@ -70,7 +70,7 @@ def main(args, logger):
     print(f"Number of files in '{args.data_path}': {input_count}")
 
     '''Random select 1500 scans to train, will redo in each round'''
-    scene_idx = np.random.choice(input_count, args.select_num, replace=False)## SemanticKITTI totally has 19130 training samples
+    #scene_idx = np.random.choice(input_count, args.select_num, replace=False)## SemanticKITTI totally has 19130 training samples
     trainset = ConstSite(args)
     train_loader = DataLoader(trainset, batch_size=args.batch_size, shuffle=True, collate_fn=cfl_collate_fn(), num_workers=args.workers, pin_memory=True, worker_init_fn=worker_init_fn(seed))
 

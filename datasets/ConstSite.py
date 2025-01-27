@@ -8,7 +8,7 @@ import open3d as o3d
 from lib.aug_tools import rota_coords, scale_coords, trans_coords
 from lib.helper_ply import read_ply as read_ply
 from os.path import join
-
+import os
 
 class cfl_collate_fn:
 
@@ -76,7 +76,9 @@ class ConstSite(Dataset):
         print('folders: ',  folders)
         for _, file in enumerate(folders):
             print('file:', file)
-            name = file.replace(self.args.data_path, '')
+            #name = file.replace(self.args.data_path, '')
+            name = os.path.splitext(os.path.basename(file))[0]
+            print('name:', name)
             self.name.append(name)
             self.file.append(file)
 
@@ -138,7 +140,7 @@ class ConstSite(Dataset):
         scale = 1 / self.args.voxel_size
         coords = np.floor(coords * scale)
         coords, feats, labels, unique_map, inverse_map = ME.utils.sparse_quantize(np.ascontiguousarray(coords), feats, labels=labels, ignore_label=-1, return_index=True, return_inverse=True)
-        return coords.numpy(), feats, labels, unique_map, inverse_map.numpy()
+        return coords, feats, labels, unique_map, inverse_map
 
     def __len__(self):
         return len(self.file)
@@ -158,11 +160,16 @@ class ConstSite(Dataset):
 
         region_file = self.args.sp_path + '/' +self.name[index] + '_superpoint.npy'
         region = np.load(region_file)
+        print("load")
+        print(region)
 
         '''Clip if Scene includes much Points'''
-        # if clip_inds is not None:
+        #if clip_inds is not None:
         #     region = region[clip_inds]
         region = region[unique_map]
+        print("unique map")
+        print(region)
+        print(self.mode)
 
         coords, colors = self.augs(coords, colors)
 
@@ -177,7 +184,7 @@ class ConstSite(Dataset):
         coords_mix = coords_mix.astype(np.float32)
         coords_mix -= coords_mix.mean(0)
 
-        coords_mix, colors_mix, _, unique_map_mix, clip_inds_mix, _ = self.voxelize(coords_mix, colors_mix, labels_mix)
+        coords_mix, colors_mix, _, unique_map_mix, clip_inds_mix = self.voxelize(coords_mix, colors_mix, labels_mix)
         coords_mix = coords_mix.astype(np.float32)
         #
         coords_mix, colors_mix = self.augs(coords_mix, colors_mix)
@@ -195,7 +202,9 @@ class ConstSite(Dataset):
             pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=3, max_nn=30))
             normals = np.array(pcd.normals)
 
-            region[labels==-1] = -1
+            #region[labels==-1] = -1
+            print("inside if")
+            print(region)
 
             for q in np.unique(region):
                 mask = q == region
@@ -216,11 +225,29 @@ class ConstSite(Dataset):
             scene_name = self.name[index]
             file_path = self.args.pseudo_label_path + '/' + scene_name + '.npy'
             pseudo = np.array(np.load(file_path), dtype=np.long)
-
+        print("region")
+        print(region)
         return coords, feats, normals, labels, inverse_map, pseudo, inds, region, index
 
 
 class ConstSitetest(Dataset):
+    """
+    Custom class for handling 3D point cloud data stored in .ply files.
+
+    Attributes:
+        args: Namespace containing configuration parameters such as data path and voxel size.
+        name: List of file names (without path) of the .ply files.
+        file: List of full file paths for the .ply files.
+        label_to_names: Dictionary mapping numeric labels to their corresponding semantic names.
+
+    Methods:
+        __init__: Initializes the dataset by loading the .ply files and setting up metadata.
+        augment_coords_to_feats: Augments coordinates and colors to create features for the model.
+        voxelize: Performs voxelization of the point cloud data using sparse quantization.
+        __len__: Returns the number of files in the dataset.
+        __getitem__: Loads a single .ply file, processes it, and prepares it for the model.
+    """
+
     def __init__(self, args):
         self.args = args
         self.name = []
@@ -313,6 +340,12 @@ class ConstSitetest(Dataset):
 
 
 class cfl_collate_fn_test:
+    """
+    Custom collate function for batching data from the ConstSitetest dataset.
+
+    Methods:
+        __call__: Combines data from multiple dataset items (I am not sure) into a single batch.
+    """
 
     def __call__(self, list_data):
         coords, feats, inverse_map, labels, index, region= list(zip(*list_data))

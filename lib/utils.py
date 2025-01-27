@@ -17,7 +17,7 @@ def get_sp_feature(args, loader, model, current_growsp):
     with torch.no_grad():
         for batch_idx, data in enumerate(loader):
             coords, features, normals, labels, inverse_map, pseudo_labels, inds, region, index = data
-
+            print(region)
             region = region.squeeze()
             scene_name = loader.dataset.name[index[0]]
             gt = labels.clone()
@@ -30,6 +30,7 @@ def get_sp_feature(args, loader, model, current_growsp):
             feats = feats[inds.long()]
 
             valid_mask = region!=-1
+            print(valid_mask.shape)
             '''Compute avg rgb/xyz/norm for each Superpoints to help merging superpoints'''
             features = features[inds.long()].cuda()
             features = features[valid_mask]
@@ -43,6 +44,9 @@ def get_sp_feature(args, loader, model, current_growsp):
             pc_xyz = features[:, 3:] * args.voxel_size
             ##
             region_num = len(torch.unique(region))
+            print("region num")
+            print(region)
+            print(region_num)
             region_corr = torch.zeros(region.size(0), region_num)#?
             region_corr.scatter_(1, region.view(-1, 1), 1)
             region_corr = region_corr.cuda()##[N, M]
@@ -71,6 +75,7 @@ def get_sp_feature(args, loader, model, current_growsp):
             pfh = []
 
             neural_region_num = len(torch.unique(neural_region))
+            print(neural_region_num)
             neural_region_corr = torch.zeros(neural_region.size(0), neural_region_num)
             neural_region_corr.scatter_(1, neural_region.view(-1, 1), 1)
             neural_region_corr = neural_region_corr.cuda()
@@ -83,11 +88,13 @@ def get_sp_feature(args, loader, model, current_growsp):
                 feats = F.linear(neural_region_corr.t(), feats.t()) / per_neural_region_num
                 feats = F.normalize(feats, dim=-1)
 
+
             for p in torch.unique(neural_region):
+                
                 if p!=-1:
                     mask = p==neural_region
                     pfh.append(compute_hist(normals[mask].cpu()).unsqueeze(0).cuda())
-
+            print(pfh)
             pfh = torch.cat(pfh, dim=0)
             feats = F.normalize(feats, dim=-1)
             # #
