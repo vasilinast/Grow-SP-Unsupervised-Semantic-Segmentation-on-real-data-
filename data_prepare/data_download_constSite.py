@@ -6,6 +6,7 @@ import argparse
 def download_and_extract(url, workspace_dir):
     # Ensure the workspace directory exists
     os.makedirs(workspace_dir, exist_ok=True)
+    print('destination directory: ', workspace_dir)
 
     # Define paths
     zip_file_path = os.path.join(workspace_dir, "downloaded_folder.zip")
@@ -36,8 +37,8 @@ def download_and_extract(url, workspace_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download and extract a folder.")
-    parser.add_argument("url", type=str, nargs='?', default="https://tubcloud.tu-berlin.de/s/AZM2c8A4yXanNmt/download", help="URL of the folder to download (default: https://tubcloud.tu-berlin.de/s/AZM2c8A4yXanNmt/download)")
-    parser.add_argument("workspace_dir",nargs='?',default='raw_data_const_site', type=str, help="Directory to extract the folder")
+    parser.add_argument("--url", type=str, nargs='?', default="https://tubcloud.tu-berlin.de/s/AZM2c8A4yXanNmt/download", help="URL of the folder to download (default: https://tubcloud.tu-berlin.de/s/AZM2c8A4yXanNmt/download)")
+    parser.add_argument("--workspace_dir",nargs='?',default='raw_data_const_site', type=str, help="Directory to extract the folder")
     
     args = parser.parse_args()
     
