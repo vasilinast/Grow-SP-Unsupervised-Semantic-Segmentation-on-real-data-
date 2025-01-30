@@ -39,11 +39,11 @@ def parse_args():
     parser.add_argument('--momentum', type=float, default=0.9, help='SGD parameters')
     parser.add_argument('--dampening', type=float, default=0.1, help='SGD parameters')
     parser.add_argument('--weight-decay', type=float, default=1e-4, help='SGD parameters')
-    parser.add_argument('--workers', type=int, default=1, help='how many workers for loading data in training') ###10
-    parser.add_argument('--cluster_workers', type=int, default=1, help='how many workers for loading data in clustering') ####4
+    parser.add_argument('--workers', type=int, default=4, help='how many workers for loading data in training') ###10
+    parser.add_argument('--cluster_workers', type=int, default=4, help='how many workers for loading data in clustering') ####4
     parser.add_argument('--seed', type=int, default=2022, help='random seed')
     parser.add_argument('--log-interval', type=int, default=20, help='log interval')
-    parser.add_argument('--batch_size', type=int, default=2, help='batchsize in training') ###16
+    parser.add_argument('--batch_size', type=int, default=32, help='batchsize in training') ###16
     parser.add_argument('--voxel_size', type=float, default=0.15, help='voxel size in SparseConv') ###0.05
     parser.add_argument('--input_dim', type=int, default=6, help='network input dimension')### 6 for XYZGB
     parser.add_argument('--primitive_num', type=int, default=300, help='how many primitives used in training')
@@ -67,7 +67,7 @@ def main(args, logger):
 
     '''Prepare Data'''
     input_count = len([file for file in os.listdir(args.data_path) if os.path.isfile(os.path.join(args.data_path, file))])
-    print(f"Number of files in '{args.data_path}': {input_count}")
+    #print(f"Number of files in '{args.data_path}': {input_count}")
 
     '''Random select 1500 scans to train, will redo in each round'''
     #scene_idx = np.random.choice(input_count, args.select_num, replace=False)## SemanticKITTI totally has 19130 training samples
@@ -79,7 +79,7 @@ def main(args, logger):
 
     '''Prepare Model/Optimizer'''
     model = Res16FPN18(in_channels=args.input_dim, out_channels=args.primitive_num, conv1_kernel_size=args.conv1_kernel_size, config=args)
-    logger.info(model)
+    #logger.info(model)
     model = model.cuda()
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum, dampening=args.dampening, weight_decay=args.weight_decay)
     scheduler = PolyLR(optimizer, max_iter=args.max_iter[0])
@@ -131,6 +131,7 @@ def main(args, logger):
 
 
 def cluster(args, logger, cluster_loader, model, epoch, start_grow_epoch=None, is_Growing=False):
+    print('in cluster function of train_const_site')
     time_start = time.time()
     cluster_loader.dataset.mode = 'cluster'
 
@@ -144,23 +145,29 @@ def cluster(args, logger, cluster_loader, model, epoch, start_grow_epoch=None, i
     '''Extract Superpoints Feature'''
     feats, labels, sp_index, context = get_sp_feature(args, cluster_loader, model, current_growsp)
     sp_feats = torch.cat(feats, dim=0)### will do Kmeans with geometric distance
+    print('done with performing Kmeans on geometric distances')
     primitive_labels = KMeans(n_clusters=args.primitive_num, n_init=5, random_state=0, n_jobs=5).fit_predict(sp_feats.numpy())
+    print("done with Kmeans on primitives")
     sp_feats = sp_feats[:,0:args.feats_dim]### drop geometric feature
 
     '''Compute Primitive Centers'''
     primitive_centers = torch.zeros((args.primitive_num, args.feats_dim))
+    print('iterating over primatives')
     for cluster_idx in range(args.primitive_num):
         indices = primitive_labels == cluster_idx
         cluster_avg = sp_feats[indices].mean(0, keepdims=True)
         primitive_centers[cluster_idx] = cluster_avg
     primitive_centers = F.normalize(primitive_centers, dim=1)
+    print('before get_fixclassifier')
     classifier = get_fixclassifier(in_channel=args.feats_dim, centroids_num=args.primitive_num, centroids=primitive_centers)
 
     '''Compute and Save Pseudo Labels'''
+    print('before get_pseudo')
     all_pseudo, all_gt, all_pseudo_gt = get_pseudo(args, context, primitive_labels, sp_index)
     logger.info('labelled points ratio %.2f clustering time: %.2fs', (all_pseudo!=-1).sum()/all_pseudo.shape[0], time.time() - time_start)
 
     '''Check Superpoint/Primitive Acc in Training'''
+    print('starting evaluation')
     sem_num = args.semantic_class
     mask = (all_pseudo_gt!=-1)
     histogram = np.bincount(sem_num* all_gt.astype(np.int32)[mask] + all_pseudo_gt.astype(np.int32)[mask], minlength=sem_num ** 2).reshape(sem_num, sem_num)    # hungarian matching
@@ -191,6 +198,7 @@ def cluster(args, logger, cluster_loader, model, epoch, start_grow_epoch=None, i
     for IoU in IoUs:
         s += '{:5.2f} '.format(100 * IoU)
     logger.info('Primitives oAcc {:.2f} IoUs'.format(o_Acc) + s)
+    print("returning classifier from cluster function in train_const_site")
     return classifier.cuda()
 
 
@@ -296,6 +304,23 @@ def set_seed(seed):
 
 if __name__ == '__main__':
     args = parse_args()
+    assert torch.cuda.is_available(), "CUDA is not available"
+
+    # Test a simple CUDA tensor operation
+    device = torch.device('cuda')
+    print(device)
+    a = torch.tensor([1.0, 2.0, 3.0], device=device)
+    b = torch.tensor([4.0, 5.0, 6.0], device=device)
+    c = a + b
+
+    print("CUDA operation result:", c)  # Should print the tensor [5.0, 7.0, 9.0] on the GPU
+    print("CUDA is available. GPU will be used.")
+    print("CUDA available:", torch.cuda.is_available())
+    print("CUDA device count:", torch.cuda.device_count())
+    print("CUDA current device:", torch.cuda.current_device())
+    print("CUDA device name:", torch.cuda.get_device_name(0))
+    print(torch.__version__)
+    print(torch.version.cuda)
 
     '''Setup logger'''
     if not os.path.exists(args.save_path):

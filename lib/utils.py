@@ -12,48 +12,67 @@ def get_sp_feature(args, loader, model, current_growsp):
     point_feats_list = []
     point_labels_list = []
     all_sp_index = []
+    print('before model eval')
     model.eval()
+    print('after model eval')
     context = []
     with torch.no_grad():
         for batch_idx, data in enumerate(loader):
             coords, features, normals, labels, inverse_map, pseudo_labels, inds, region, index = data
-            print(region)
+            print('region shape', region.shape)
             region = region.squeeze()
             scene_name = loader.dataset.name[index[0]]
             gt = labels.clone()
             raw_region = region.clone()
 
             in_field = ME.TensorField(features, coords, device=0)
+            print("checking Minkowski is on GPU?")
+            print(in_field.device) 
 
             feats = model(in_field)
             # feats = F.normalize(feats, dim=-1)
             feats = feats[inds.long()]
 
             valid_mask = region!=-1
-            print(valid_mask.shape)
+            #print(valid_mask.shape)
             '''Compute avg rgb/xyz/norm for each Superpoints to help merging superpoints'''
             features = features[inds.long()].cuda()
             features = features[valid_mask]
             normals = normals[inds.long()].cuda()
             normals = normals[valid_mask]
             feats = feats[valid_mask]
+            labels = labels.to("cuda")
             labels = labels[valid_mask]
+            region = region.to("cuda")
             region = region[valid_mask].long()
-            ##
+            print(f"features device: {features.device}")
+            print(f"normals device: {normals.device}")
+            print(f"labels device: {labels.device}")
+            print(f"feats device: {feats.device}")
+            print(f"region device: {region.device}")
+
+                        ##
             pc_rgb = features[:, 0:3]
             pc_xyz = features[:, 3:] * args.voxel_size
             ##
             region_num = len(torch.unique(region))
-            print("region num")
-            print(region)
-            print(region_num)
+            #print("region num")
+            #print(region)
+            #print(region_num)
             region_corr = torch.zeros(region.size(0), region_num)#?
+            print(f"region device: {region.device}")
+            region_corr = region_corr.to("cuda")
+            print(f"region_corr device: {region_corr.device}")
             region_corr.scatter_(1, region.view(-1, 1), 1)
             region_corr = region_corr.cuda()##[N, M]
             per_region_num = region_corr.sum(0, keepdims=True).t()
+            print(f"per_region_num device: {per_region_num.device}")
             ###
             region_feats = F.linear(region_corr.t(), feats.t())/per_region_num
+            print(f"region_feats device: {region_feats.device}")
+
             if current_growsp is not None:
+                print('current_growsp IS NOT None')
                 region_rgb = F.linear(region_corr.t(), pc_rgb.t())/per_region_num
                 region_xyz = F.linear(region_corr.t(), pc_xyz.t())/per_region_num
                 region_norm = F.linear(region_corr.t(), normals.t())/per_region_num
@@ -68,38 +87,69 @@ def get_sp_feature(args, loader, model, current_growsp):
                     n_segments = current_growsp
                 sp_idx = torch.from_numpy(KMeans(n_clusters=n_segments, n_init=5, random_state=0, n_jobs=5).fit_predict(region_feats.cpu().numpy())).long()
             else:
+                print('current_growsp IS None')
+                print(f"region_feats device: {region_feats.device}")
                 feats = region_feats
-                sp_idx = torch.tensor(range(region_feats.size(0)))
+                print(f"feats device: {feats.device}")
 
+                sp_idx = torch.tensor(range(region_feats.size(0)), device=0)
+
+            print(f"sp_idx device: {sp_idx.device}")
             neural_region = sp_idx[region]
+            print(f"neural_region device: {neural_region.device}")
+
             pfh = []
 
             neural_region_num = len(torch.unique(neural_region))
-            print(neural_region_num)
-            neural_region_corr = torch.zeros(neural_region.size(0), neural_region_num)
+            #print(neural_region_num)
+            neural_region_corr = torch.zeros(neural_region.size(0), neural_region_num, device=0)
+
             neural_region_corr.scatter_(1, neural_region.view(-1, 1), 1)
             neural_region_corr = neural_region_corr.cuda()
             per_neural_region_num = neural_region_corr.sum(0, keepdims=True).t()
-            #
+            print(f"per_neural_region_num device: {per_neural_region_num.device}")
+            
             '''Compute avg rgb/pfh for each Superpoints to help Primitives Learning'''
             final_rgb = F.linear(neural_region_corr.t(), pc_rgb.t())/per_neural_region_num
-            #
+            print(f"final_rgb device: {final_rgb.device}")
+            
             if current_growsp is not None:
                 feats = F.linear(neural_region_corr.t(), feats.t()) / per_neural_region_num
                 feats = F.normalize(feats, dim=-1)
 
-
+            print("total number of unique neural regions: ", torch.unique(neural_region).shape)
             for p in torch.unique(neural_region):
                 
                 if p!=-1:
                     mask = p==neural_region
                     pfh.append(compute_hist(normals[mask].cpu()).unsqueeze(0).cuda())
-            print(pfh)
             pfh = torch.cat(pfh, dim=0)
+            print(f"pfh device: {pfh.device}")
+            print("pfh shape: ", pfh.shape)
+
+            unique_regions = torch.unique(neural_region)
+            print(f"unique_regions device: {unique_regions.device}")
+            masks = (neural_region.unsqueeze(0) == unique_regions.unsqueeze(1))
+            pfh2 = compute_hist_vectorized_julia(normals, masks)
+            print(f"pfh2 device: {pfh2.device}")
+            pfh = pfh.cpu() if pfh.is_cuda else pfh
+            pfh2 = pfh2.cpu() if pfh2.is_cuda else pfh2
+            
+            are_equal = torch.all(torch.eq(pfh, pfh2))
+            print(f"pfh and pfh2 are exactly equal: {are_equal}")
+            max_diff = torch.max(torch.abs(pfh - pfh2))
+            print(f"Maximum absolute difference: {max_diff}")
+            mse = torch.mean((pfh - pfh2) ** 2)
+            print(f"Mean Squared Error: {mse}")
+            are_close = torch.allclose(pfh, pfh2, rtol=1e-5, atol=1e-8)
+            print(f"pfh and pfh2 are close within tolerance: {are_close}")
+
             feats = F.normalize(feats, dim=-1)
-            # #
+            print(f"feats device: {feats.device}")
             feats = torch.cat((feats, args.c_rgb*final_rgb, args.c_shape*pfh), dim=-1)
+            print(f"feats device: {feats.device}")
             feats = F.normalize(feats, dim=-1)
+            print(f"feats device: {feats.device}")
 
             point_feats_list.append(feats.cpu())
             point_labels_list.append(labels.cpu())
@@ -109,9 +159,24 @@ def get_sp_feature(args, loader, model, current_growsp):
 
             torch.cuda.empty_cache()
             torch.cuda.synchronize(torch.device("cuda"))
+    print("returning from utils.get_sp_feature")
     return point_feats_list, point_labels_list, all_sp_index, context
 
-
+def compute_hist_vectorized_julia(normals, masks, bins=10, min=-1, max=1):
+    normals = F.normalize(normals, dim=-1)
+    batch_size = masks.shape[0]
+    hist_list = []
+    
+    for i in range(batch_size):
+        mask = masks[i]
+        normal = normals[mask]
+        relation = torch.mm(normal, normal.t())
+        relation = torch.triu(relation, diagonal=0)
+        hist = torch.histc(relation, bins, min, max)
+        hist /= hist.sum()
+        hist_list.append(hist)
+    
+    return torch.stack(hist_list)
 
 def get_kittisp_feature(args, loader, model, current_growsp):
     print('computing point feats ....')

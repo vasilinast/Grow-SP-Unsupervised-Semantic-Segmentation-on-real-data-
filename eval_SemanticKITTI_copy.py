@@ -139,7 +139,7 @@ def eval_once(args, model, test_loader, classifier,use_sp=False):
             colors = colors.astype(np.uint8)
  
             
-            write_ply(vis_path + 'SeemanticKITTI_'+name, [coords, colors], ['x', 'y', 'z', 'red', 'green', 'blue'])
+            write_ply(vis_path + 'SemanticKITTI_'+name, [coords, colors], ['x', 'y', 'z', 'red', 'green', 'blue'])
             print('preds again')
             print(preds.shape)
             print(preds)

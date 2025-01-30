@@ -1,4 +1,6 @@
 import torch
+import sys
+import MinkowskiEngine as ME
 
 # Verify CUDA is available
 assert torch.cuda.is_available(), "CUDA is not available"
@@ -17,3 +19,4 @@ print("CUDA current device:", torch.cuda.current_device())
 print("CUDA device name:", torch.cuda.get_device_name(0))
 print(torch.__version__)
 print(torch.version.cuda)
+print(sys.version)

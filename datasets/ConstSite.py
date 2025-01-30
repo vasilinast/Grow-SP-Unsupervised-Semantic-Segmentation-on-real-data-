@@ -73,12 +73,12 @@ class ConstSite(Dataset):
         #         self.file.append(file)
 
         folders = sorted(glob(join(self.args.data_path,  '*.ply')))
-        print('folders: ',  folders)
+        #print('folders: ',  folders)
         for _, file in enumerate(folders):
-            print('file:', file)
+            #print('file:', file)
             #name = file.replace(self.args.data_path, '')
             name = os.path.splitext(os.path.basename(file))[0]
-            print('name:', name)
+            #print('name:', name)
             self.name.append(name)
             self.file.append(file)
 
@@ -149,7 +149,7 @@ class ConstSite(Dataset):
         data = read_ply(self.file[index])
         # coords, colors, labels = np.vstack((data['x'], data['y'], data['z'])).T, np.vstack((data['red'], data['green'], data['blue'])).T, data['class']
         coords, colors = np.vstack((data['x'], data['y'], data['z'])).T, np.vstack((data['red'], data['green'], data['blue'])).T
-        print(f"data['y'] dtype: {data['y'].dtype}, shape: {data['y'].shape}")
+        #print(f"data['y'] dtype: {data['y'].dtype}, shape: {data['y'].shape}")
         labels = -np.ones_like(data['y']) 
         colors = colors.astype(np.float32)
         coords = coords.astype(np.float32)
@@ -160,16 +160,16 @@ class ConstSite(Dataset):
 
         region_file = self.args.sp_path + '/' +self.name[index] + '_superpoint.npy'
         region = np.load(region_file)
-        print("load")
-        print(region)
+        #print("load")
+        #print(region)
 
         '''Clip if Scene includes much Points'''
         #if clip_inds is not None:
         #     region = region[clip_inds]
         region = region[unique_map]
-        print("unique map")
-        print(region)
-        print(self.mode)
+        #print("unique map")
+        #print(region)
+        #print(self.mode)
 
         coords, colors = self.augs(coords, colors)
 
@@ -178,7 +178,8 @@ class ConstSite(Dataset):
         mix = random.randint(0, len(self.name)-1)
         # print(mix)
         data_mix = read_ply(self.file[mix])
-        coords_mix, colors_mix, labels_mix = np.vstack((data_mix['x'], data_mix['y'], data_mix['z'])).T, np.vstack((data_mix['red'], data_mix['green'], data_mix['blue'])).T, data_mix['class']
+        dummy_labels = np.zeros_like(data_mix['x'], dtype=np.int32)
+        coords_mix, colors_mix, labels_mix = np.vstack((data_mix['x'], data_mix['y'], data_mix['z'])).T, np.vstack((data_mix['red'], data_mix['green'], data_mix['blue'])).T, dummy_labels
         colors = colors.astype(np.float32)
         colors_mix = colors_mix.astype(np.float32)
         coords_mix = coords_mix.astype(np.float32)
@@ -203,8 +204,8 @@ class ConstSite(Dataset):
             normals = np.array(pcd.normals)
 
             #region[labels==-1] = -1
-            print("inside if")
-            print(region)
+            #print("inside if")
+            #print(region)
 
             for q in np.unique(region):
                 mask = q == region
@@ -225,8 +226,8 @@ class ConstSite(Dataset):
             scene_name = self.name[index]
             file_path = self.args.pseudo_label_path + '/' + scene_name + '.npy'
             pseudo = np.array(np.load(file_path), dtype=np.long)
-        print("region")
-        print(region)
+        #print("region")
+        #print(region)
         return coords, feats, normals, labels, inverse_map, pseudo, inds, region, index
 
 
@@ -267,10 +268,10 @@ class ConstSitetest(Dataset):
                                12: 'clutter'}
 
         folders = sorted(glob(join(self.args.data_path,  '*.ply')))
-        print('self.args.data_path:', self.args.data_path)
-        print('folders: ',  folders)
+        #print('self.args.data_path:', self.args.data_path)
+        #print('folders: ',  folders)
         for _, file in enumerate(folders):
-            print('file:', file)
+            #print('file:', file)
             name = file.replace(self.args.data_path+'/', '')
             self.name.append(name)
             self.file.append(file)
