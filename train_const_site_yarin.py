@@ -90,6 +90,11 @@ def main(args, logger):
     '''Superpoints will not Grow in 1st Stage'''
     is_Growing = False
     for epoch in range(1, args.max_epoch[0] + 1):
+        print("++++++ NEW EPOCH ++++++")
+        print("epoch: ", epoch)
+        epoch_start_time = time.time()
+        print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(epoch_start_time))} - Epoch start time")
+
         '''Take 10 epochs as a round'''
         if (epoch - 1) % 10 == 0:
             classifier = cluster(args, logger, cluster_loader, model, epoch, start_grow_epoch, is_Growing)
@@ -131,7 +136,7 @@ def main(args, logger):
 
 
 def cluster(args, logger, cluster_loader, model, epoch, start_grow_epoch=None, is_Growing=False):
-    print('in cluster function of train_const_site')
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - in cluster function of train_const_site")
     time_start = time.time()
     cluster_loader.dataset.mode = 'cluster'
 
@@ -145,29 +150,29 @@ def cluster(args, logger, cluster_loader, model, epoch, start_grow_epoch=None, i
     '''Extract Superpoints Feature'''
     feats, labels, sp_index, context = get_sp_feature(args, cluster_loader, model, current_growsp)
     sp_feats = torch.cat(feats, dim=0)### will do Kmeans with geometric distance
-    print('done with performing Kmeans on geometric distances')
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - done with performing Kmeans on geometric distances")
     primitive_labels = KMeans(n_clusters=args.primitive_num, n_init=5, random_state=0, n_jobs=5).fit_predict(sp_feats.numpy())
-    print("done with Kmeans on primitives")
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - done with Kmeans on primitives")
     sp_feats = sp_feats[:,0:args.feats_dim]### drop geometric feature
 
     '''Compute Primitive Centers'''
     primitive_centers = torch.zeros((args.primitive_num, args.feats_dim))
-    print('iterating over primatives')
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - iterating over primatives")
     for cluster_idx in range(args.primitive_num):
         indices = primitive_labels == cluster_idx
         cluster_avg = sp_feats[indices].mean(0, keepdims=True)
         primitive_centers[cluster_idx] = cluster_avg
     primitive_centers = F.normalize(primitive_centers, dim=1)
-    print('before get_fixclassifier')
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - before get_fixclassifier")
     classifier = get_fixclassifier(in_channel=args.feats_dim, centroids_num=args.primitive_num, centroids=primitive_centers)
 
     '''Compute and Save Pseudo Labels'''
-    print('before get_pseudo')
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - before get_pseudo")
     all_pseudo, all_gt, all_pseudo_gt = get_pseudo(args, context, primitive_labels, sp_index)
     logger.info('labelled points ratio %.2f clustering time: %.2fs', (all_pseudo!=-1).sum()/all_pseudo.shape[0], time.time() - time_start)
 
     '''Check Superpoint/Primitive Acc in Training'''
-    print('starting evaluation')
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - starting evaluation")
     sem_num = args.semantic_class
     mask = (all_pseudo_gt!=-1)
     histogram = np.bincount(sem_num* all_gt.astype(np.int32)[mask] + all_pseudo_gt.astype(np.int32)[mask], minlength=sem_num ** 2).reshape(sem_num, sem_num)    # hungarian matching
@@ -198,7 +203,7 @@ def cluster(args, logger, cluster_loader, model, epoch, start_grow_epoch=None, i
     for IoU in IoUs:
         s += '{:5.2f} '.format(100 * IoU)
     logger.info('Primitives oAcc {:.2f} IoUs'.format(o_Acc) + s)
-    print("returning classifier from cluster function in train_const_site")
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - returning classifier from cluster function in train_const_site")
     return classifier.cuda()
 
 
