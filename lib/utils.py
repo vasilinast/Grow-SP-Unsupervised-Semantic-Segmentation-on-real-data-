@@ -128,22 +128,22 @@ def get_sp_feature(args, loader, model, current_growsp):
             # print(f"pfh device: {pfh.device}")
             # print("pfh shape: ", pfh.shape)
 
-            unique_regions = torch.unique(neural_region)
-            # print(f"unique_regions device: {unique_regions.device}")
-            masks = (neural_region.unsqueeze(0) == unique_regions.unsqueeze(1))
-            pfh2 = compute_hist_vectorized_julia(normals, masks)
-            # print(f"pfh2 device: {pfh2.device}")
-            pfh = pfh.cpu() if pfh.is_cuda else pfh
-            pfh2 = pfh2.cpu() if pfh2.is_cuda else pfh2
+            # unique_regions = torch.unique(neural_region)
+            # # print(f"unique_regions device: {unique_regions.device}")
+            # masks = (neural_region.unsqueeze(0) == unique_regions.unsqueeze(1))
+            # pfh2 = compute_hist_vectorized_julia(normals, masks)
+            # # print(f"pfh2 device: {pfh2.device}")
+            # pfh = pfh.cpu() if pfh.is_cuda else pfh
+            # pfh2 = pfh2.cpu() if pfh2.is_cuda else pfh2
 
-            are_equal = torch.all(torch.eq(pfh, pfh2))
-            # print(f"pfh and pfh2 are exactly equal: {are_equal}")
-            max_diff = torch.max(torch.abs(pfh - pfh2))
-            # print(f"Maximum absolute difference: {max_diff}")
-            mse = torch.mean((pfh - pfh2) ** 2)
-            # print(f"Mean Squared Error: {mse}")
-            are_close = torch.allclose(pfh, pfh2, rtol=1e-5, atol=1e-8)
-            # print(f"pfh and pfh2 are close within tolerance: {are_close}")
+            # are_equal = torch.all(torch.eq(pfh, pfh2))
+            # # print(f"pfh and pfh2 are exactly equal: {are_equal}")
+            # max_diff = torch.max(torch.abs(pfh - pfh2))
+            # # print(f"Maximum absolute difference: {max_diff}")
+            # mse = torch.mean((pfh - pfh2) ** 2)
+            # # print(f"Mean Squared Error: {mse}")
+            # are_close = torch.allclose(pfh, pfh2, rtol=1e-5, atol=1e-8)
+            # # print(f"pfh and pfh2 are close within tolerance: {are_close}")
 
             feats = F.normalize(feats, dim=-1)
             # print(f"feats device: {feats.device}")
