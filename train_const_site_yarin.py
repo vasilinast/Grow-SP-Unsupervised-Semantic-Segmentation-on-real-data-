@@ -15,6 +15,7 @@ from sklearn.cluster import KMeans
 import logging
 from os.path import join
 import warnings
+import time
 warnings.filterwarnings('ignore')
 ###
 
