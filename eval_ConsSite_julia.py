@@ -14,6 +14,7 @@ import argparse
 import os
 warnings.filterwarnings('ignore')
 import matplotlib.pyplot as plt
+import time
 
 ###
 def parse_args():
@@ -55,9 +56,9 @@ colormap = np.array(colormap)
 def eval_once(args, model, test_loader, classifier, use_sp=False):
 
     all_preds, all_label = [], []
-    print('in eval_once')
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - start with eval_once()")
     for data in test_loader:
-        print('looping over data')
+        print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - looping over data in eval_once()")
         with torch.no_grad():
             coords, features, inverse_map, labels, index, region = data
             index = index[0]
@@ -66,12 +67,12 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
             # print(dir(test_loader.dataset))
             file = test_loader.dataset.file[index]
             name = test_loader.dataset.name[index]
-            print('file_name: ', file, ' ', name)
-            print('coords in eval_once')
-            print(coords.shape)
-            print(features.shape)
-            print(labels.shape)
-            print(inverse_map.shape)
+            # print('file_name: ', file, ' ', name)
+            # print('coords in eval_once')
+            # print(coords.shape)
+            # print(features.shape)
+            # print(labels.shape)
+            # print(inverse_map.shape)
             # print(coords[:3,:])
             # print(np.unique(coords[:,0]))
             # print(np.unique(coords[:,1]))
@@ -81,14 +82,14 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
             # print(features.shape)
 
             in_field = ME.TensorField(features, coords, device=0)
-            print('in_field')
-            print(type(in_field))
-            print(in_field.shape)
+            # print('in_field')
+            # print(type(in_field))
+            # print(in_field.shape)
             feats = model(in_field)
-            print('feats')
-            print(feats.shape)
+            # print('feats')
+            # print(feats.shape)
             feats = F.normalize(feats, dim=1)
-            print(feats.shape)
+            # print(feats.shape)
 
             region = region.squeeze()
             #
@@ -115,10 +116,10 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
                 # print('in else')
                 scores = F.linear(F.normalize(feats), F.normalize(classifier.weight))
                 preds = torch.argmax(scores, dim=1).cpu()
-                print('preds after ARGMAX')
-                print(type(preds))
-                print(preds)
-                print(preds.shape)
+                # print('preds after ARGMAX')
+                # print(type(preds))
+                # print(preds)
+                # print(preds.shape)
 
             # print('inv map')
             # print(inverse_map.shape)
@@ -138,26 +139,28 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
  
             
             write_ply(vis_path + 'S3DIS_'+name, [coords, colors], ['x', 'y', 'z', 'red', 'green', 'blue'])
-            print('preds again')
-            print(preds.shape)
-            print('labels')
-            print(labels.shape)
-            print(np.unique(preds))
-            print(np.unique(labels))
-            print(args.ignore_label)
+            # print('preds again')
+            # print(preds.shape)
+            # print('labels')
+            # print(labels.shape)
+            # print(np.unique(preds))
+            # print(np.unique(labels))
+            # print(args.ignore_label)
             all_preds.append(preds[labels!=args.ignore_label]), all_label.append(labels[[labels!=args.ignore_label]])
-            print('all_preds')
-            print(all_preds)
-            print(type(all_preds))
-            print(len(all_preds))
-            print(type(all_preds[0]))
-            print(type(all_preds[0][0]))
-
+            # print('all_preds')
+            # print(all_preds)
+            # print(type(all_preds))
+            # print(len(all_preds))
+            # print(type(all_preds[0]))
+            # print(type(all_preds[0][0]))
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - done with eval_once()")
     return all_preds, all_label
 
 
 
 def eval(epoch, args, test_areas = ['Area_5']):
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - in eval()")
+
     # First model and cls variables are set. The model variable holds the feature extraction model (I think) and the cls variable stores s-centroids classifier
     # used during training by clustering all superpoints across all point clouds into S semantic primatives (300) to create pseudo labels for training the feature 
     # extraction model.
@@ -181,12 +184,16 @@ def eval(epoch, args, test_areas = ['Area_5']):
 
     primitive_centers = cls.weight.data###[300, 128]
     print('Merging Primitives')
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - before Kmeans for merging")
     cluster_pred = KMeans(n_clusters=args.semantic_class, n_init=10, random_state=0, n_jobs=10).fit_predict(primitive_centers.cpu().numpy())#.astype(np.float64))
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - after Kmeans for merging")
     # The cls weights are the centroids of the 300 S sematic primatives. These are clustered again with K-means into n_clusters, the final desired number of clusters.
     # n_init only means, that the algorithm is run 10 times with different initializations and the best clustering is selected as the Otput of this clustering,
     # random_state is like the seed.
     
     '''Compute Class Centers'''
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - computing class centers")
+
     centroids = torch.zeros((args.semantic_class, args.feats_dim))
     for cluster_idx in range(args.semantic_class):
         indices = cluster_pred ==cluster_idx
@@ -194,6 +201,8 @@ def eval(epoch, args, test_areas = ['Area_5']):
         centroids[cluster_idx] = cluster_avg
     # computes the centroids of the C clusteres. This means, that for each cluster, the semantic primatives, that were assigned to that cluster are averaged.
     centroids = F.normalize(centroids, dim=1)
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - getting classifier")
+
     classifier = get_fixclassifier(in_channel=args.feats_dim, centroids_num=args.semantic_class, centroids=centroids).cuda()
     # This function, get_fixclassifier, which the GrowSP people wrote in lib/utils.py only creates a simple K-means based classifier. 
     # This means the classifier variable can be used to take an input and assign a cluster to it based on the proximity to a cluster center.
@@ -209,15 +218,16 @@ def eval(epoch, args, test_areas = ['Area_5']):
     # files into account. The Dataloader returns all the information for a single datapoint with the __getitem__ function, the information on the superpoints 
     # are returned in the region variable, which is not used here since the use_sp variable is set to false in the eval_once function, turning of the if-section 
     # where the region variable is used.
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - evaluating once with classifier")
 
     preds, labels = eval_once(args, model, test_loader, classifier)
     # eval_once (defined aboe) classifies each point in the test data (test_loader) with the C-centroids classifier_variable, by first extracting feature from 
     # model trained in the training phase. 
-    print("CONCATENATING PREDS")
-    print(type(preds))
-    print(len(preds))
-    print(type(preds[0]), type(preds[1]))
-    print(type(preds[0][0]), type(preds[1][0]))
+    # print("CONCATENATING PREDS")
+    # print(type(preds))
+    # print(len(preds))
+    # print(type(preds[0]), type(preds[1]))
+    # print(type(preds[0][0]), type(preds[1][0]))
     all_preds = torch.cat(preds).numpy()
     all_labels = torch.cat(labels).numpy()
 

@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from models.fpn import Res16FPN18
 from eval_ConsSite_julia import eval
-from lib.utils import get_pseudo, get_sp_feature, get_fixclassifier
+from lib.utils_original import get_pseudo, get_sp_feature, get_fixclassifier
 from sklearn.cluster import KMeans
 import logging
 from os.path import join
@@ -30,7 +30,7 @@ def parse_args():
     parser.add_argument('--save_path', type=str, default='ckpt/construct_site',
                         help='model savepath')
     ###
-    parser.add_argument('--max_epoch', type=list, default=[500, 800], help='max epoch for non-growing and growing stage')
+    parser.add_argument('--max_epoch', type=list, default=[500, 800], help='max epoch for non-growing and growing stage') ##500 800
     parser.add_argument('--max_iter', type=list, default=[10000, 30000], help='max iter for non-growing and growing stage')
     ###
     parser.add_argument('--bn_momentum', type=float, default=0.02, help='batchnorm parameters')
@@ -68,7 +68,7 @@ def main(args, logger):
 
     '''Prepare Data'''
     input_count = len([file for file in os.listdir(args.data_path) if os.path.isfile(os.path.join(args.data_path, file))])
-    #print(f"Number of files in '{args.data_path}': {input_count}")
+    print(f"Number of files in '{args.data_path}': {input_count}")
 
     '''Random select 1500 scans to train, will redo in each round'''
     #scene_idx = np.random.choice(input_count, args.select_num, replace=False)## SemanticKITTI totally has 19130 training samples
@@ -90,25 +90,29 @@ def main(args, logger):
     '''Train and Cluster'''
     '''Superpoints will not Grow in 1st Stage'''
     is_Growing = False
-    for epoch in range(1, args.max_epoch[0] + 1):
+    for epoch in range(1, args.max_epoch[0] + 1): #it starts from 1 cause the epoch 0 is about the initial superpoints constructed by the VCCS + region growing algorithm
         print("++++++ NEW EPOCH ++++++")
         print("epoch: ", epoch)
         epoch_start_time = time.time()
         print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(epoch_start_time))} - Epoch start time")
 
         '''Take 10 epochs as a round'''
-        if (epoch - 1) % 10 == 0:
+        if (epoch - 1) % 10 == 0: #every 10 epoques(in the epoque 1,11,21,...) the cluster function is called: 1.extract features from the model, 2.runs kmeans clustering to reassign superpoints, 3.updates the classifier with new superpoints
             classifier = cluster(args, logger, cluster_loader, model, epoch, start_grow_epoch, is_Growing)
-        train(train_loader, logger, model, optimizer, loss, epoch, scheduler, classifier)
+        print("Before training:")
+        print(torch.cuda.memory_summary(device=device, abbreviated=False))
+        train(train_loader, logger, model, optimizer, loss, epoch, scheduler, classifier) #1.processes batches of point clouds, 2. computes loss with pseudo-labels, 3. performs backpropagation and updates model weights, 4.adjust lr
 
-        if epoch % 10 == 0:
+        if epoch % 10 == 0: #every 10 epoques(at the epoque 0, 10, 20, ...) the model and the classifier are saved --> the training can resume from a checkpoint if interrupted
             torch.save(model.state_dict(), join(args.save_path,  'model_' + str(epoch) + '_checkpoint.pth'))
             torch.save(classifier.state_dict(), join(args.save_path, 'cls_' + str(epoch) + '_checkpoint.pth'))
-            with torch.no_grad():
+            with torch.no_grad(): #Computes overall accuracy (oAcc), mean accuracy (mAcc), Intersection-over-Union (IoU) for segmentation
                 o_Acc, m_Acc, s = eval(epoch, args)
-                logger.info('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc) + s)
+                print("After evaluation:")
+                print(torch.cuda.memory_summary(device=device, abbreviated=False))
+                logger.info('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc) + s) #Results are logged for tracking progres
 
-            iterations = (epoch + 10) * len(train_loader)
+            iterations = (epoch + 10) * len(train_loader) #If iterations > max_iter[0] (default: 10,000), the loop exits and the growing stage will begin
             if iterations > args.max_iter[0]:
                 start_grow_epoch = epoch
                 break
@@ -310,6 +314,7 @@ def set_seed(seed):
 
 if __name__ == '__main__':
     args = parse_args()
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512"
     assert torch.cuda.is_available(), "CUDA is not available"
 
     # Test a simple CUDA tensor operation
