@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from models.fpn import Res16FPN18
 from eval_ConsSite_julia import eval
-from lib.utils_original import get_pseudo, get_sp_feature, get_fixclassifier
+from lib.utils import get_pseudo, get_sp_feature, get_fixclassifier
 from sklearn.cluster import KMeans
 import logging
 from os.path import join
@@ -45,7 +45,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=2022, help='random seed')
     parser.add_argument('--log-interval', type=int, default=20, help='log interval')
     parser.add_argument('--batch_size', type=int, default=32, help='batchsize in training') ###16
-    parser.add_argument('--voxel_size', type=float, default=0.15, help='voxel size in SparseConv') ###0.05
+    parser.add_argument('--voxel_size', type=float, default=0.3, help='voxel size in SparseConv') ###0.05
     parser.add_argument('--input_dim', type=int, default=6, help='network input dimension')### 6 for XYZGB
     parser.add_argument('--primitive_num', type=int, default=300, help='how many primitives used in training')
     parser.add_argument('--semantic_class', type=int, default=12, help='ground truth semantic class')
@@ -106,11 +106,12 @@ def main(args, logger):
         if epoch % 10 == 0: #every 10 epoques(at the epoque 0, 10, 20, ...) the model and the classifier are saved --> the training can resume from a checkpoint if interrupted
             torch.save(model.state_dict(), join(args.save_path,  'model_' + str(epoch) + '_checkpoint.pth'))
             torch.save(classifier.state_dict(), join(args.save_path, 'cls_' + str(epoch) + '_checkpoint.pth'))
-            with torch.no_grad(): #Computes overall accuracy (oAcc), mean accuracy (mAcc), Intersection-over-Union (IoU) for segmentation
-                o_Acc, m_Acc, s = eval(epoch, args)
-                print("After evaluation:")
-                print(torch.cuda.memory_summary(device=device, abbreviated=False))
-                logger.info('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc) + s) #Results are logged for tracking progres
+            if epoch % 100 == 0:
+                with torch.no_grad(): #Computes overall accuracy (oAcc), mean accuracy (mAcc), Intersection-over-Union (IoU) for segmentation
+                    o_Acc, m_Acc, s = eval(epoch, args)
+                    print("After evaluation:")
+                    print(torch.cuda.memory_summary(device=device, abbreviated=False))
+                    logger.info('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc) + s) #Results are logged for tracking progres
 
             iterations = (epoch + 10) * len(train_loader) #If iterations > max_iter[0] (default: 10,000), the loop exits and the growing stage will begin
             if iterations > args.max_iter[0]:
@@ -135,9 +136,10 @@ def main(args, logger):
         if epoch % 10 == 0:
             torch.save(model.state_dict(), join(args.save_path,  'model_' + str(epoch) + '_checkpoint.pth'))
             torch.save(classifier.state_dict(), join(args.save_path, 'cls_' + str(epoch) + '_checkpoint.pth'))
-            with torch.no_grad():
-                o_Acc, m_Acc, s = eval(epoch, args)
-                logger.info('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc) + s)
+            if epoch % 100 == 0:
+                with torch.no_grad():
+                    o_Acc, m_Acc, s = eval(epoch, args)
+                    logger.info('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc) + s)
 
 
 def cluster(args, logger, cluster_loader, model, epoch, start_grow_epoch=None, is_Growing=False):
@@ -314,7 +316,7 @@ def set_seed(seed):
 
 if __name__ == '__main__':
     args = parse_args()
-    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512"
+    # os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512"
     assert torch.cuda.is_available(), "CUDA is not available"
 
     # Test a simple CUDA tensor operation

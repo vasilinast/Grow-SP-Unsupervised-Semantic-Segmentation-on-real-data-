@@ -270,7 +270,11 @@ class ConstSitetest(Dataset):
         folders = sorted(glob(join(self.args.data_path,  '*.ply')))
         #print('self.args.data_path:', self.args.data_path)
         #print('folders: ',  folders)
-        for _, file in enumerate(folders):
+        subset_size = max(3, int(0.1 * len(folders)))
+        selected_files = np.random.choice(folders, subset_size, replace=False)
+
+        #for _, file in enumerate(folders):
+        for file in selected_files:
             #print('file:', file)
             name = file.replace(self.args.data_path+'/', '')
             self.name.append(name)
