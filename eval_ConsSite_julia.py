@@ -190,7 +190,7 @@ def eval(epoch, args, test_areas = ['Area_5']):
     primitive_centers = cls.weight.data###[300, 128]
     primitive_centers = primitive_centers.cpu().numpy()
 
-    class_num_array = np.linspace(12, 50, num=10, dtype=int)
+    class_num_array = [6, 8, 9, 10, 11, 12, 13, 14, 15, 18, 20, 22]
     #print(class_num_array)
 
     silhouette_scores = {}  # Dictionary to store silhouette scores

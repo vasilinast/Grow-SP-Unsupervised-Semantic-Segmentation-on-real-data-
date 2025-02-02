@@ -11,6 +11,8 @@ from lib.utils import get_fixclassifier
 import warnings
 import argparse
 import os
+from sklearn.metrics import silhouette_score
+
 warnings.filterwarnings('ignore')
 
 ###
@@ -92,8 +94,13 @@ def eval(epoch, args, test_areas = ['Area_5']):
     cls.eval()
 
     primitive_centers = cls.weight.data###[300, 128]
+    primitive_centers = primitive_centers.cpu().numpy()
     print('Merging Primitives')
-    cluster_pred = KMeans(n_clusters=args.semantic_class, n_init=10, random_state=0, n_jobs=10).fit_predict(primitive_centers.cpu().numpy())#.astype(np.float64))
+    kmeans = KMeans(n_clusters=args.semantic_class, n_init=10, random_state=0, n_jobs=10)
+    cluster_pred = kmeans.fit_predict(primitive_centers)#.astype(np.float64))
+
+    silhoutte = silhouette_score(primitive_centers, cluster_pred)
+    wcss = kmeans.inertia_
 
     '''Compute Class Centers'''
     centroids = torch.zeros((args.semantic_class, args.feats_dim))
@@ -135,7 +142,7 @@ def eval(epoch, args, test_areas = ['Area_5']):
     for IoU in IoUs:
         s += '{:5.2f} '.format(100 * IoU)
 
-    return o_Acc, m_Acc, s
+    return o_Acc, m_Acc, s, silhoutte, wcss
 
 
 if __name__ == '__main__':

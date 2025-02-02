@@ -116,7 +116,7 @@ def main(args, logger):
         if epoch % 10 == 0: #every 10 epoques(at the epoque 0, 10, 20, ...) the model and the classifier are saved --> the training can resume from a checkpoint if interrupted
             torch.save(model.state_dict(), join(args.save_path,  'model_' + str(epoch) + '_checkpoint.pth'))
             torch.save(classifier.state_dict(), join(args.save_path, 'cls_' + str(epoch) + '_checkpoint.pth'))
-            if epoch % 100 == 0:
+            if epoch % 10 == 0:
                 with torch.no_grad(): #Computes overall accuracy (oAcc), mean accuracy (mAcc), Intersection-over-Union (IoU) for segmentation
                     wcss_scores, silhouette_scores = eval(epoch, args)
 
@@ -165,7 +165,7 @@ def main(args, logger):
         if epoch % 10 == 0:
             torch.save(model.state_dict(), join(args.save_path,  'model_' + str(epoch) + '_checkpoint.pth'))
             torch.save(classifier.state_dict(), join(args.save_path, 'cls_' + str(epoch) + '_checkpoint.pth'))
-            if epoch % 100 == 0:
+            if epoch % 10 == 0:
                 with torch.no_grad():
                     wcss_scores, silhouette_scores = eval(epoch, args)
 
