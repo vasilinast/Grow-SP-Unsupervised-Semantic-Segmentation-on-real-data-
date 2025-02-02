@@ -17,6 +17,9 @@ from os.path import join
 import warnings
 import time
 warnings.filterwarnings('ignore')
+import pandas as pd
+import json
+
 ###
 
 def parse_args():
@@ -70,6 +73,13 @@ def main(args, logger):
     input_count = len([file for file in os.listdir(args.data_path) if os.path.isfile(os.path.join(args.data_path, file))])
     print(f"Number of files in '{args.data_path}': {input_count}")
 
+    # Initialize empty dataframes to store results
+    silhouette_df = pd.DataFrame()
+    wcss_df = pd.DataFrame()
+    # Define full paths
+    silhouette_path = os.path.join(args.save_path, "silhouette_scores.txt")
+    wcss_path = os.path.join(args.save_path, "wcss_scores.txt")
+
     '''Random select 1500 scans to train, will redo in each round'''
     #scene_idx = np.random.choice(input_count, args.select_num, replace=False)## SemanticKITTI totally has 19130 training samples
     trainset = ConstSite(args)
@@ -108,10 +118,29 @@ def main(args, logger):
             torch.save(classifier.state_dict(), join(args.save_path, 'cls_' + str(epoch) + '_checkpoint.pth'))
             if epoch % 100 == 0:
                 with torch.no_grad(): #Computes overall accuracy (oAcc), mean accuracy (mAcc), Intersection-over-Union (IoU) for segmentation
-                    o_Acc, m_Acc, s = eval(epoch, args)
+                    wcss_scores, silhouette_scores = eval(epoch, args)
+
+                    # Convert dictionaries to DataFrames (one row per epoch)
+                    sil_row = pd.DataFrame([silhouette_scores], index=[epoch])
+                    wcss_row = pd.DataFrame([wcss_scores], index=[epoch])
+
+                    # Append to the main DataFrame
+                    silhouette_df = pd.concat([silhouette_df, sil_row])
+                    wcss_df = pd.concat([wcss_df, wcss_row])
+
+                    # Save to TXT files
+                    silhouette_df.to_csv(silhouette_path, sep="\t", index=True)
+                    wcss_df.to_csv(wcss_path, sep="\t", index=True)
+
+                    best_silhouette_clusters = max(silhouette_scores, key=silhouette_scores.get)
+                    best_silhouette_score = silhouette_scores[best_silhouette_clusters]
+
+                    best_wcss_clusters = min(wcss_scores, key=wcss_scores.get)
+                    best_wcss_score = wcss_scores[best_wcss_clusters]
+
                     print("After evaluation:")
                     print(torch.cuda.memory_summary(device=device, abbreviated=False))
-                    logger.info('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc) + s) #Results are logged for tracking progres
+                    logger.info('Epoch: {:02d}, silhoutte {:.2f}  wcss {:.2f} '.format(epoch, best_silhouette_score, best_wcss_score)) #Results are logged for tracking progres
 
             iterations = (epoch + 10) * len(train_loader) #If iterations > max_iter[0] (default: 10,000), the loop exits and the growing stage will begin
             if iterations > args.max_iter[0]:
@@ -138,8 +167,29 @@ def main(args, logger):
             torch.save(classifier.state_dict(), join(args.save_path, 'cls_' + str(epoch) + '_checkpoint.pth'))
             if epoch % 100 == 0:
                 with torch.no_grad():
-                    o_Acc, m_Acc, s = eval(epoch, args)
-                    logger.info('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc) + s)
+                    wcss_scores, silhouette_scores = eval(epoch, args)
+
+                    # Convert dictionaries to DataFrames (one row per epoch)
+                    sil_row = pd.DataFrame([silhouette_scores], index=[epoch])
+                    wcss_row = pd.DataFrame([wcss_scores], index=[epoch])
+
+                    # Append to the main DataFrame
+                    silhouette_df = pd.concat([silhouette_df, sil_row])
+                    wcss_df = pd.concat([wcss_df, wcss_row])
+
+                    # Save to TXT files
+                    silhouette_df.to_csv(silhouette_path, sep="\t", index=True)
+                    wcss_df.to_csv(wcss_path, sep="\t", index=True)
+
+                    best_silhouette_clusters = max(silhouette_scores, key=silhouette_scores.get)
+                    best_silhouette_score = silhouette_scores[best_silhouette_clusters]
+
+                    best_wcss_clusters = min(wcss_scores, key=wcss_scores.get)
+                    best_wcss_score = wcss_scores[best_wcss_clusters]
+
+                    print("After evaluation:")
+                    print(torch.cuda.memory_summary(device=device, abbreviated=False))
+                    logger.info('Epoch: {:02d}, silhoutte {:.2f}  wcss {:.2f} '.format(epoch, best_silhouette_score, best_wcss_score)) #Results are logged for tracking progres
 
 
 def cluster(args, logger, cluster_loader, model, epoch, start_grow_epoch=None, is_Growing=False):
@@ -339,6 +389,12 @@ if __name__ == '__main__':
     if not os.path.exists(args.save_path):
             os.makedirs(args.save_path)
     logger = set_logger(os.path.join(args.save_path, 'train.log'))
+
+    # Log the arguments at the start of the training
+    args_dict = vars(args)  # Convert the args object to a dictionary
+    logger.info('Training Arguments:')
+    logger.info(json.dumps(args_dict, indent=4))  # Pretty-print the arguments as a JSON string
+
 
     '''Random Seed'''
     # Check if CUDA is available

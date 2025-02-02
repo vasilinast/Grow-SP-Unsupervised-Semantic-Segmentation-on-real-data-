@@ -15,13 +15,14 @@ import os
 warnings.filterwarnings('ignore')
 import matplotlib.pyplot as plt
 import time
+from sklearn.metrics import silhouette_score
 
 ###
 def parse_args():
     parser = argparse.ArgumentParser(description='PyTorch Unsuper_3D_Seg')
     # parser.add_argument('--data_path', type=str, default='/workspace/data/S3DIS/input',
     #                     help='pont cloud data path')
-    parser.add_argument('--data_path', type=str, default='/workspace/test_data',
+    parser.add_argument('--data_path', type=str, default='/workspace/data/S3DIS_sample',
                         help='pont cloud data path')
     parser.add_argument('--sp_path', type=str, default='',
                         help='initial superpoint path')
@@ -31,8 +32,8 @@ def parse_args():
     parser.add_argument('--bn_momentum', type=float, default=0.02, help='batchnorm parameters')
     parser.add_argument('--conv1_kernel_size', type=int, default=5, help='kernel size of 1st conv layers')
     ####
-    parser.add_argument('--workers', type=int, default=10, help='how many workers for loading data')
-    parser.add_argument('--cluster_workers', type=int, default=4, help='how many workers for loading data in clustering')
+    parser.add_argument('--workers', type=int, default=1, help='how many workers for loading data') #10
+    parser.add_argument('--cluster_workers', type=int, default=1, help='how many workers for loading data in clustering')#4
     parser.add_argument('--seed', type=int, default=2022, help='random seed')
     parser.add_argument('--voxel_size', type=float, default=0.05, help='voxel size in SparseConv')
     parser.add_argument('--input_dim', type=int, default=6, help='network input dimension')### 6 for XYZGB
@@ -56,6 +57,7 @@ colormap = np.array(colormap)
 def eval_once(args, model, test_loader, classifier, use_sp=False):
 
     all_preds, all_label = [], []
+    all_feats = []
     print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - start with eval_once()")
     for data in test_loader:
         print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - looping over data in eval_once()")
@@ -125,7 +127,9 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
             # print(inverse_map.shape)
             preds = preds[inverse_map.long()]
             labels = labels[inverse_map.long()]
-            vis_path = '/workspace/data/test_data/'
+            feats = feats[inverse_map.long()]
+
+            vis_path = '/workspace/data/ConstSite/'
             coords =  np.vstack((data['x'], data['y'], data['z'])).T
             if not os.path.exists(vis_path):
                 os.makedirs(vis_path)
@@ -147,6 +151,7 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
             # print(np.unique(labels))
             # print(args.ignore_label)
             all_preds.append(preds[labels!=args.ignore_label]), all_label.append(labels[[labels!=args.ignore_label]])
+            all_feats.append(feats.cpu())
             # print('all_preds')
             # print(all_preds)
             # print(type(all_preds))
@@ -154,7 +159,7 @@ def eval_once(args, model, test_loader, classifier, use_sp=False):
             # print(type(all_preds[0]))
             # print(type(all_preds[0][0]))
     print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - done with eval_once()")
-    return all_preds, all_label
+    return all_preds, all_label, all_feats
 
 
 
@@ -183,26 +188,60 @@ def eval(epoch, args, test_areas = ['Area_5']):
 
 
     primitive_centers = cls.weight.data###[300, 128]
-    print('Merging Primitives')
-    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - before Kmeans for merging")
-    cluster_pred = KMeans(n_clusters=args.semantic_class, n_init=10, random_state=0, n_jobs=10).fit_predict(primitive_centers.cpu().numpy())#.astype(np.float64))
-    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - after Kmeans for merging")
+    primitive_centers = primitive_centers.cpu().numpy()
+
+    class_num_array = np.linspace(12, 50, num=10, dtype=int)
+    #print(class_num_array)
+
+    silhouette_scores = {}  # Dictionary to store silhouette scores
+    wcss_scores = {}
+
+    for num_clusters in class_num_array:  
+        print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - performing KMeans for merging with {num_clusters} clusters")
+        
+        kmeans = KMeans(n_clusters=num_clusters, n_init=10, random_state=0, n_jobs=10)
+        cluster_pred = kmeans.fit_predict(primitive_centers)
+
+        #print(f"Finished clustering with {num_clusters} clusters")
+
+        '''Evaluate Clustering with Silhouette Score'''
+        if num_clusters > 1:  # Silhouette score requires at least 2 clusters
+            score = silhouette_score(primitive_centers, cluster_pred)
+            silhouette_scores[num_clusters] = score
+            #print(f"Silhouette Score for {num_clusters} clusters: {score:.4f}")
+
+        '''Compute WCSS (Inertia)'''
+        wcss = kmeans.inertia_
+        wcss_scores[num_clusters] = wcss
+        #print(f"WCSS (Inertia) for {num_clusters} clusters: {wcss:.4f}")
+
+    #print(wcss_scores)
+    #print(silhouette_scores)
+
+    return wcss_scores, silhouette_scores
+
+
+    #print('Merging Primitives')
+    #print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - before Kmeans for merging")
+    #cluster_pred = KMeans(n_clusters=args.semantic_class, n_init=10, random_state=0, n_jobs=10).fit_predict(primitive_centers.cpu().numpy())#.astype(np.float64))
+    #print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - after Kmeans for merging")
     # The cls weights are the centroids of the 300 S sematic primatives. These are clustered again with K-means into n_clusters, the final desired number of clusters.
     # n_init only means, that the algorithm is run 10 times with different initializations and the best clustering is selected as the Otput of this clustering,
     # random_state is like the seed.
     
     '''Compute Class Centers'''
-    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - computing class centers")
+    #print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - computing class centers")
 
-    centroids = torch.zeros((args.semantic_class, args.feats_dim))
-    for cluster_idx in range(args.semantic_class):
-        indices = cluster_pred ==cluster_idx
-        cluster_avg = primitive_centers[indices].mean(0, keepdims=True)
-        centroids[cluster_idx] = cluster_avg
+    #centroids = torch.zeros((args.semantic_class, args.feats_dim))
+    #for cluster_idx in range(args.semantic_class):
+    #    indices = cluster_pred ==cluster_idx
+    #    cluster_avg = primitive_centers[indices].mean(0, keepdims=True)
+    #    centroids[cluster_idx] = cluster_avg
     # computes the centroids of the C clusteres. This means, that for each cluster, the semantic primatives, that were assigned to that cluster are averaged.
-    centroids = F.normalize(centroids, dim=1)
-    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - getting classifier")
+    #centroids = F.normalize(centroids, dim=1)
+    #print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - getting classifier")
 
+    '''''
     classifier = get_fixclassifier(in_channel=args.feats_dim, centroids_num=args.semantic_class, centroids=centroids).cuda()
     # This function, get_fixclassifier, which the GrowSP people wrote in lib/utils.py only creates a simple K-means based classifier. 
     # This means the classifier variable can be used to take an input and assign a cluster to it based on the proximity to a cluster center.
@@ -220,30 +259,40 @@ def eval(epoch, args, test_areas = ['Area_5']):
     # where the region variable is used.
     print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} - evaluating once with classifier")
 
-    preds, labels = eval_once(args, model, test_loader, classifier)
+    preds, labels, feats = eval_once(args, model, test_loader, classifier)
     # eval_once (defined aboe) classifies each point in the test data (test_loader) with the C-centroids classifier_variable, by first extracting feature from 
     # model trained in the training phase. 
     # print("CONCATENATING PREDS")
-    # print(type(preds))
-    # print(len(preds))
+    print(len(feats[0]))
+    print(len(preds[0]))
     # print(type(preds[0]), type(preds[1]))
     # print(type(preds[0][0]), type(preds[1][0]))
     all_preds = torch.cat(preds).numpy()
     all_labels = torch.cat(labels).numpy()
+    all_feats = torch.cat(feats).numpy()
 
-    '''Unsupervised, Match pred to gt'''
+    print(f"all_feats shape: {all_feats.shape}")
+    print(f"all_preds shape: {all_preds.shape}")
+
+    sample_size = min(100000, len(all_feats))  # Limit to 10,000 samples or fewer
+    indices = np.random.choice(len(all_feats), sample_size, replace=False)
+
+    score = silhouette_score(all_feats[indices], all_preds[indices])
+    print(f'Silhouette Score: {score}')
+
+    #Unsupervised, Match pred to gt
     sem_num = args.semantic_class
     mask = (all_labels >= 0) & (all_labels < sem_num)
     histogram = np.bincount(sem_num * all_labels[mask] + all_preds[mask], minlength=sem_num ** 2).reshape(sem_num, sem_num)
-    '''Hungarian Matching'''
+    #Hungarian Matching
     m = linear_assignment(histogram.max() - histogram)
     o_Acc = histogram[m[:, 0], m[:, 1]].sum() / histogram.sum()*100.
     m_Acc = np.mean(histogram[m[:, 0], m[:, 1]] / histogram.sum(1))*100
     hist_new = np.zeros((sem_num, sem_num))
     for idx in range(sem_num):
         hist_new[:, idx] = histogram[:, m[idx, 1]]
-
-    '''Final Metrics'''
+    
+    #Final Metrics
     tp = np.diag(hist_new)
     fp = np.sum(hist_new, 0) - tp
     fn = np.sum(hist_new, 1) - tp
@@ -252,8 +301,9 @@ def eval(epoch, args, test_areas = ['Area_5']):
     s = '| mIoU {:5.2f} | '.format(100 * m_IoU)
     for IoU in IoUs:
         s += '{:5.2f} '.format(100 * IoU)
+    '''''
 
-    return o_Acc, m_Acc, s
+    #return o_Acc, m_Acc, s
 
 
 if __name__ == '__main__':
@@ -261,5 +311,5 @@ if __name__ == '__main__':
     args = parse_args()
     for epoch in range(10, 1500):
         if epoch % 1270 == 0:
-            o_Acc, m_Acc, s = eval(epoch, args)
-            print('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc), s)
+            wcss_scores, silhouette_scores = eval(epoch, args)
+            #print('Epoch: {:02d}, wcss {:.2f}  silhouette {:.2f} IoUs'.format(epoch, wcss_scores, silhouette_scores))
