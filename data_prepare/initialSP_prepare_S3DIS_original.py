@@ -36,7 +36,7 @@ args = parser.parse_args()
 
 ignore_label = 12
 voxel_size = 0.05
-vis = True
+vis = False #True is the default value, but for computational reasons it is set to False
 
 
 def supervoxel_clustering(coords, rgb=None):

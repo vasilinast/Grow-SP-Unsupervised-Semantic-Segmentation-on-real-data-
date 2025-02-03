@@ -110,7 +110,7 @@ def main(args, logger):
         if (epoch - 1) % 10 == 0: #every 10 epoques(in the epoque 1,11,21,...) the cluster function is called: 1.extract features from the model, 2.runs kmeans clustering to reassign superpoints, 3.updates the classifier with new superpoints
             classifier = cluster(args, logger, cluster_loader, model, epoch, start_grow_epoch, is_Growing)
         print("Before training:")
-        print(torch.cuda.memory_summary(device=device, abbreviated=False))
+        # print(torch.cuda.memory_summary(device=device, abbreviated=False))
         train(train_loader, logger, model, optimizer, loss, epoch, scheduler, classifier) #1.processes batches of point clouds, 2. computes loss with pseudo-labels, 3. performs backpropagation and updates model weights, 4.adjust lr
 
         if epoch % 10 == 0: #every 10 epoques(at the epoque 0, 10, 20, ...) the model and the classifier are saved --> the training can resume from a checkpoint if interrupted
@@ -139,8 +139,13 @@ def main(args, logger):
                     best_wcss_score = wcss_scores[best_wcss_clusters]
 
                     print("After evaluation:")
+<<<<<<< HEAD
                     print(torch.cuda.memory_summary(device=device, abbreviated=False))
                     logger.info('Epoch: {:02d}, silhoutte {:.2f}  wcss {:.2f} '.format(epoch, best_silhouette_score, best_wcss_score)) #Results are logged for tracking progres
+=======
+                    # print(torch.cuda.memory_summary(device=device, abbreviated=False))
+                    logger.info('Epoch: {:02d}, oAcc {:.2f}  mAcc {:.2f} IoUs'.format(epoch, o_Acc, m_Acc) + s) #Results are logged for tracking progres
+>>>>>>> 2a60576 (cleaning up git repositories on multiple servers)
 
             iterations = (epoch + 10) * len(train_loader) #If iterations > max_iter[0] (default: 10,000), the loop exits and the growing stage will begin
             if iterations > args.max_iter[0]:
