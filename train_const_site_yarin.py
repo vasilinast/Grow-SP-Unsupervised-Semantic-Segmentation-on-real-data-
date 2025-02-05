@@ -47,13 +47,15 @@ def parse_args():
     parser.add_argument('--cluster_workers', type=int, default=4, help='how many workers for loading data in clustering') ####4
     parser.add_argument('--seed', type=int, default=2022, help='random seed')
     parser.add_argument('--log-interval', type=int, default=20, help='log interval')
-    parser.add_argument('--batch_size', type=int, default=32, help='batchsize in training') ###16
+    parser.add_argument('--batch_size', type=int, default=8, help='batchsize in training') ###16
     parser.add_argument('--voxel_size', type=float, default=0.3, help='voxel size in SparseConv') ###0.05
     parser.add_argument('--input_dim', type=int, default=6, help='network input dimension')### 6 for XYZGB
     parser.add_argument('--primitive_num', type=int, default=300, help='how many primitives used in training')
     parser.add_argument('--semantic_class', type=int, default=12, help='ground truth semantic class')
     parser.add_argument('--feats_dim', type=int, default=128, help='output feature dimension')
+
     parser.add_argument('--pseudo_label_path', default='pseudo_label_const_site/', type=str, help='pseudo label save path')
+    
     parser.add_argument('--ignore_label', type=int, default=-1, help='invalid label') ###12
     parser.add_argument('--growsp_start', type=int, default=80, help='the start number of growing superpoint')
     parser.add_argument('--growsp_end', type=int, default=30, help='the end number of grwoing superpoint') #20
@@ -110,7 +112,7 @@ def main(args, logger):
         if (epoch - 1) % 10 == 0: #every 10 epoques(in the epoque 1,11,21,...) the cluster function is called: 1.extract features from the model, 2.runs kmeans clustering to reassign superpoints, 3.updates the classifier with new superpoints
             classifier = cluster(args, logger, cluster_loader, model, epoch, start_grow_epoch, is_Growing)
         print("Before training:")
-        print(torch.cuda.memory_summary(device=device, abbreviated=False))
+        # print(torch.cuda.memory_summary(device=device, abbreviated=False))
         train(train_loader, logger, model, optimizer, loss, epoch, scheduler, classifier) #1.processes batches of point clouds, 2. computes loss with pseudo-labels, 3. performs backpropagation and updates model weights, 4.adjust lr
 
         if epoch % 10 == 0: #every 10 epoques(at the epoque 0, 10, 20, ...) the model and the classifier are saved --> the training can resume from a checkpoint if interrupted
@@ -138,7 +140,6 @@ def main(args, logger):
                     best_wcss_clusters = min(wcss_scores, key=wcss_scores.get)
                     best_wcss_score = wcss_scores[best_wcss_clusters]
 
-                    print("After evaluation:")
                     print(torch.cuda.memory_summary(device=device, abbreviated=False))
                     logger.info('Epoch: {:02d}, silhoutte {:.2f}  wcss {:.2f} '.format(epoch, best_silhouette_score, best_wcss_score)) #Results are logged for tracking progres
 

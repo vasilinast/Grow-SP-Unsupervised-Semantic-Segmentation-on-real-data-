@@ -30,13 +30,13 @@ colormap = np.array(colormap)
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_path', type=str, default='data/S3DIS/input', help='raw data path')
-parser.add_argument('--sp_path', type=str, default='data/S3DIS/initial_superpoints')
+parser.add_argument('--input_path', type=str, default='/workspace/data/S3DIS/input', help='raw data path')
+parser.add_argument('--sp_path', type=str, default='/workspace/data/S3DIS/initial_superpoints')
 args = parser.parse_args()
 
 ignore_label = 12
 voxel_size = 0.05
-vis = True
+vis = False #True is the default value, but for computational reasons it is set to False
 
 
 def supervoxel_clustering(coords, rgb=None):
@@ -75,7 +75,8 @@ def construct_superpoints(path):
     coords = np.floor(coords * scale)
     coords, feats, labels, unique_map, inverse_map = ME.utils.sparse_quantize(np.ascontiguousarray(coords),
                             feats, labels=labels, ignore_label=-1, return_index=True, return_inverse=True)
-    coords = coords.numpy().astype(np.float32)
+    # coords = coords.numpy().astype(np.float32)
+    coords = coords.astype(np.float32)
 
     '''VCCS'''
     out = supervoxel_clustering(coords, feats)
@@ -148,18 +149,37 @@ def construct_superpoints(path):
 
 print('start constructing initial superpoints')
 path_list = []
-folders = sorted(glob.glob(args.input_path + '/*.ply'))
+print('input path')
+print(Path.cwd())
+home_directory = Path.cwd()
+for item in home_directory.glob("*"):  # Recursive listing
+    if item.is_dir():
+        print(f"Directory: {item}")
+    elif item.is_file():
+        print(f"File: {item}")
+print(args.input_path)
+print(glob.glob(args.input_path))
+print(glob.glob("~"))
+print(glob.glob("~/data/"))
+print(glob.glob("/workspace"))
+folders = sorted(glob.glob("/workspace/data/S3DIS/input" + '/*.ply'))
+print(folders)
 for _, file in enumerate(folders):
+    print(file)
     path_list.append(file)
 pool = ProcessPoolExecutor(max_workers=10)
 result = list(pool.map(construct_superpoints, path_list))
-
+print(result)
 print('end constructing initial superpoints')
 
 all_labels, all_sp2gt = [], []
 for (labels, sp2gt) in result:
+    print('in for loop')
+    print(labels)
     mask = (sp2gt != -1) & (sp2gt != ignore_label)
     labels, sp2gt = labels[mask].astype(np.int32), sp2gt[mask].astype(np.int32)
+    print('sp2gt')
+    print(sp2gt)
     all_labels.append(labels), all_sp2gt.append(sp2gt)
 
 all_labels, all_sp2gt  = np.concatenate(all_labels), np.concatenate(all_sp2gt)

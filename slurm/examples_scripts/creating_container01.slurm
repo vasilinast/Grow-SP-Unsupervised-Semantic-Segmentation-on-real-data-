@@ -23,7 +23,7 @@ WORK_PATH=~/htcv_ss2425_dlfor3d
 
 DATA_PATH=/scratch/${DATASET}
 SAVE_PATH==/scratch/results/${DATASET}_bs${BATCHSIZE}_vs${VOXELSIZE}
-CONTAINER_PATH=~/growsp_nvidia_latest.sif
+
 
 # Create required folders if needed
 # mkdir -p ${WORK_PATH}/data/saved_models

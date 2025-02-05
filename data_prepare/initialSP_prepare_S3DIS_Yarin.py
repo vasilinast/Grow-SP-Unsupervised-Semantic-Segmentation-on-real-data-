@@ -12,10 +12,12 @@ sys.path.append(BASE_DIR)
 sys.path.append(ROOT_DIR)
 from lib.helper_ply import read_ply, write_ply
 import time
-import MinkowskiEngine as ME
+#import MinkowskiEngine as ME
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
+import subprocess
+import h5py
 
 colormap = []
 for _ in range(1000):
@@ -30,8 +32,8 @@ colormap = np.array(colormap)
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_path', type=str, default='/workspace/data/S3DIS/input', help='raw data path')
-parser.add_argument('--sp_path', type=str, default='/workspace/data/S3DIS/initial_superpoints')
+parser.add_argument('--input_path', type=str, default='data/S3DIS/input', help='raw data path')
+parser.add_argument('--sp_path', type=str, default='data/S3DIS/initial_superpoints')
 args = parser.parse_args()
 
 ignore_label = 12
@@ -61,6 +63,7 @@ def region_growing_simple(coords):
 
 
 def construct_superpoints(path):
+    '''''
     f = Path(path)
     data = read_ply(f)
     coords = np.vstack((data['x'], data['y'], data['z'])).T.copy()
@@ -70,12 +73,40 @@ def construct_superpoints(path):
     coords -= coords.mean(0)
 
     time_start = time.time()
-    '''Voxelize'''
+    #Voxelize
     scale = 1 / voxel_size
     coords = np.floor(coords * scale)
     coords, feats, labels, unique_map, inverse_map = ME.utils.sparse_quantize(np.ascontiguousarray(coords),
                             feats, labels=labels, ignore_label=-1, return_index=True, return_inverse=True)
-    # coords = coords.numpy().astype(np.float32)
+    coords = coords.numpy().astype(np.float32)
+    '''
+    f = Path(path)
+    data = read_ply(f)
+
+    time_start = time.time()
+    print(f"voxalizing {path}...")
+    result = subprocess.run(['/opt/conda/bin/python', 'data_prepare/voxelize.py', '--input_path', path], capture_output=True, text=True)
+
+    if result.returncode == 0:
+        print("voxalization ran successfully!")
+    else:
+        print(f"Script failed with return code {result.returncode}")
+        print("Standard Output:")
+        print(result.stdout)  # Print the standard output
+        print("Standard Error:")
+        print(result.stderr)  # Print the standard error
+
+    output_file = f.parent / (f.stem + '.h5')
+    # Read the output .h5 file
+    with h5py.File(output_file, 'r') as hfile:
+        # Load the data stored in the .h5 file
+        coords = np.array(hfile['coords'])
+        feats = np.array(hfile['feats'])
+        labels = np.array(hfile['labels'])
+        unique_map = np.array(hfile['unique_map'])
+        inverse_map = np.array(hfile['inverse_map'])
+
+    #os.remove(output_file)
     coords = coords.astype(np.float32)
 
     '''VCCS'''
@@ -121,7 +152,7 @@ def construct_superpoints(path):
     out_sp_labels = sp_labels[inverse_map]
     out_coords = np.vstack((data['x'], data['y'], data['z'])).T
     out_labels = data['class'].squeeze()
-    #
+    
     if not exists(args.sp_path):
         os.makedirs(args.sp_path)
     np.save(args.sp_path + '/' + f.name[:-4] + '_superpoint.npy', out_sp_labels)
@@ -149,37 +180,19 @@ def construct_superpoints(path):
 
 print('start constructing initial superpoints')
 path_list = []
-print('input path')
-print(Path.cwd())
-home_directory = Path.cwd()
-for item in home_directory.glob("*"):  # Recursive listing
-    if item.is_dir():
-        print(f"Directory: {item}")
-    elif item.is_file():
-        print(f"File: {item}")
-print(args.input_path)
-print(glob.glob(args.input_path))
-print(glob.glob("~"))
-print(glob.glob("~/data/"))
-print(glob.glob("/workspace"))
-folders = sorted(glob.glob("/workspace/data/S3DIS/input" + '/*.ply'))
-print(folders)
+folders = sorted(glob.glob(args.input_path + '/*.ply'))
 for _, file in enumerate(folders):
-    print(file)
     path_list.append(file)
 pool = ProcessPoolExecutor(max_workers=10)
+print(path_list)
 result = list(pool.map(construct_superpoints, path_list))
-print(result)
+
 print('end constructing initial superpoints')
 
 all_labels, all_sp2gt = [], []
 for (labels, sp2gt) in result:
-    print('in for loop')
-    print(labels)
     mask = (sp2gt != -1) & (sp2gt != ignore_label)
     labels, sp2gt = labels[mask].astype(np.int32), sp2gt[mask].astype(np.int32)
-    print('sp2gt')
-    print(sp2gt)
     all_labels.append(labels), all_sp2gt.append(sp2gt)
 
 all_labels, all_sp2gt  = np.concatenate(all_labels), np.concatenate(all_sp2gt)
