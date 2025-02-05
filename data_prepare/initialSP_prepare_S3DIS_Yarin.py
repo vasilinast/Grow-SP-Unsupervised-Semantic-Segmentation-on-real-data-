@@ -12,10 +12,12 @@ sys.path.append(BASE_DIR)
 sys.path.append(ROOT_DIR)
 from lib.helper_ply import read_ply, write_ply
 import time
-import MinkowskiEngine as ME
+#import MinkowskiEngine as ME
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
+import subprocess
+import h5py
 
 colormap = []
 for _ in range(1000):
@@ -61,6 +63,7 @@ def region_growing_simple(coords):
 
 
 def construct_superpoints(path):
+    '''''
     f = Path(path)
     data = read_ply(f)
     coords = np.vstack((data['x'], data['y'], data['z'])).T.copy()
@@ -70,12 +73,41 @@ def construct_superpoints(path):
     coords -= coords.mean(0)
 
     time_start = time.time()
-    '''Voxelize'''
+    #Voxelize
     scale = 1 / voxel_size
     coords = np.floor(coords * scale)
     coords, feats, labels, unique_map, inverse_map = ME.utils.sparse_quantize(np.ascontiguousarray(coords),
                             feats, labels=labels, ignore_label=-1, return_index=True, return_inverse=True)
     coords = coords.numpy().astype(np.float32)
+    '''
+    f = Path(path)
+    data = read_ply(f)
+
+    time_start = time.time()
+    print(f"voxalizing {path}...")
+    result = subprocess.run(['/opt/conda/bin/python', 'data_prepare/voxelize.py', '--input_path', path], capture_output=True, text=True)
+
+    if result.returncode == 0:
+        print("voxalization ran successfully!")
+    else:
+        print(f"Script failed with return code {result.returncode}")
+        print("Standard Output:")
+        print(result.stdout)  # Print the standard output
+        print("Standard Error:")
+        print(result.stderr)  # Print the standard error
+
+    output_file = f.parent / (f.stem + '.h5')
+    # Read the output .h5 file
+    with h5py.File(output_file, 'r') as hfile:
+        # Load the data stored in the .h5 file
+        coords = np.array(hfile['coords'])
+        feats = np.array(hfile['feats'])
+        labels = np.array(hfile['labels'])
+        unique_map = np.array(hfile['unique_map'])
+        inverse_map = np.array(hfile['inverse_map'])
+
+    #os.remove(output_file)
+    coords = coords.astype(np.float32)
 
     '''VCCS'''
     out = supervoxel_clustering(coords, feats)
@@ -120,7 +152,7 @@ def construct_superpoints(path):
     out_sp_labels = sp_labels[inverse_map]
     out_coords = np.vstack((data['x'], data['y'], data['z'])).T
     out_labels = data['class'].squeeze()
-    #
+    
     if not exists(args.sp_path):
         os.makedirs(args.sp_path)
     np.save(args.sp_path + '/' + f.name[:-4] + '_superpoint.npy', out_sp_labels)
@@ -152,6 +184,7 @@ folders = sorted(glob.glob(args.input_path + '/*.ply'))
 for _, file in enumerate(folders):
     path_list.append(file)
 pool = ProcessPoolExecutor(max_workers=10)
+print(path_list)
 result = list(pool.map(construct_superpoints, path_list))
 
 print('end constructing initial superpoints')
