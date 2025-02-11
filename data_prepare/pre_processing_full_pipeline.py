@@ -146,6 +146,8 @@ def process_laz_file(laz_file, file_name, sub_grid_size):
         coords = np.vstack((las.x, las.y, las.z)).T
         colors = np.vstack((las.red, las.green, las.blue)).T.astype(np.uint8)
 
+        classifications = las.classification
+
     # Downsample using MinkowskiEngine
     _, _, inds = ME.utils.sparse_quantize(
         np.ascontiguousarray(coords),
@@ -155,6 +157,7 @@ def process_laz_file(laz_file, file_name, sub_grid_size):
     )
     sub_coords = coords[inds]
     sub_colors = colors[inds]
+    sub_classifications = classifications[inds]
 
     sp_labels, road_index = construct_superpoints(sub_coords, sub_colors)
 
@@ -169,6 +172,12 @@ def process_laz_file(laz_file, file_name, sub_grid_size):
     coords = sub_coords[keep_mask]
     rgbs = sub_colors[keep_mask]
     sp_labels = sp_labels[keep_mask]  # Ensure labels remain consistent
+    classifications = sub_classifications[keep_mask]
+
+    non_ground_mask = classifications != 2  # Keep only non-ground points
+    coords = coords[non_ground_mask]
+    rgbs = rgbs[non_ground_mask]
+    sp_labels = sp_labels[non_ground_mask]
 
     sp_output_folder = join(args.output_path, "input_superpoints")
     ply_output_folder = join(args.output_path, "input_plys")
@@ -209,8 +218,8 @@ def csf(laz_file, classified_dir):
 
     # prameter settings
     csf.params.bSloopSmooth = True
-    csf.params.cloth_resolution =1.0
-    csf.params.rigidness = 10
+    csf.params.cloth_resolution =1
+    csf.params.rigidness = 5
     csf.params.time_step = 0.45
     csf.params.class_threshold = 0.1
     csf.params.interations = 100
@@ -249,17 +258,17 @@ def csf(laz_file, classified_dir):
 
 # Main processing loop
 print("Starting processing...")
-#print("Classifying...")
-#classified_dir = join(args.input_path, "ground_classified")
-#laz_files = [join(args.input_path, f) for f in os.listdir(args.input_path) if f.endswith('.laz') or f.endswith('.las')]
+print("Classifying...")
+classified_dir = join(args.output_path, "ground_classified")
+laz_files = [join(args.input_path, f) for f in os.listdir(args.input_path) if f.endswith('.laz') or f.endswith('.las')]
 
-#for laz_file in laz_files:
-#    print(f"Classifying: {laz_file}")
-#    csf(laz_file, classified_dir)
+for laz_file in laz_files:
+    print(f"Classifying: {laz_file}")
+    csf(laz_file, classified_dir)
 
 print("tiling...")
-tile_dir = join(args.input_path, "tiled")
-tile(input_folder=args.input_path, output_dir=tile_dir, size="55x58", crop_min_y=18)
+tile_dir = join(args.output_path, "tiled")
+tile(input_folder=classified_dir, output_dir=tile_dir, size="55x58", crop_min_y=18)
 laz_files = [join(tile_dir, f) for f in os.listdir(tile_dir) if f.endswith('.laz') or f.endswith('.las')]
 print(laz_files)
 
