@@ -37,7 +37,7 @@ To get started:
 
 ## Running the Code
 
-A subset of our dataset is available here: [Download Dataset](#)
+A subset of our dataset is available here: [Download Dataset](https://tubcloud.tu-berlin.de/s/cjmKfq3zA3tj2rw)
 
 ### 1. Pre-processing
 
@@ -51,7 +51,7 @@ This command tiles each point cloud, removes ground points, and generates initia
 - `input_superpoints`: Contains the initial regions for each point cloud.
 - `input_plys`: Contains the processed point clouds ready for training.
 
-A preprocessed dataset is also available here: [Preprocessed Dataset](#)
+A preprocessed dataset is also available here: [Preprocessed Dataset](https://tubcloud.tu-berlin.de/s/tKPrMNJ9nPpdYtd)
 
 ### 2. Training
 
@@ -63,7 +63,7 @@ python train_const_site_yarin.py --data_path <path to input_plys folder> --sp_pa
 note that there are more hyperparameters that can be changed.
 The output model, evaluation scores (silhoutte, wcss) and a log file will be saved in the specified output directory.
 
-Our trained models can be found here: [Trained Models](#)
+Our trained models can be found here: [Trained Models](https://tubcloud.tu-berlin.de/s/YFrRN5RmPTRoYcJ)
 
 ### 3. Visual Evaluation and Inference
 
@@ -73,7 +73,7 @@ For visual evaluation and inference on new point cloud data, run the following c
 python post_processing_const_site.py --data_path <path to input point clouds in ply format> --save_path <path to the folder of the trained model> --vis_path <path to save the segmented point clouds> --semantic_class 18 --primitive_num 300 --voxel_size 0.3
 ```
 
-All of the segmented point clouds we used for visual evaluation are stored on the HPC at `/scratch/yarinp/vis`. The folder is divided into five subdirectories corresponding to different models:
+All of the segmented point clouds we used for visual evaluation are stored on the HPC at `/scratch/yarinp/vis`. The folder is divided into five subdirectories corresponding to different models we trained:
 
 - `model300`
 - `model500`
