@@ -55,7 +55,7 @@ A preprocessed dataset is also available here: [Preprocessed Dataset](https://tu
 
 ### 2. Training
 
-Train the segmentation model with the following command. You can adjust hyperparameters as needed:
+Train the model with the following command. You can adjust hyperparameters as needed:
 
 ```bash
 python train_const_site_yarin.py --data_path <path to input_plys folder> --sp_path <path to input_superpoints folder> --save_path <path to save the model> --pseudo_label_path <path to save pseudo labels> --voxel_size 0.15 --primitive_num 300 --batch_size 8 --growsp_start 80 --growsp_end 30
