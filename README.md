@@ -7,7 +7,7 @@ The original GrowSP repository: https://github.com/vLAR-group/GrowSP
 
 ![GrowSP Segmentation Demo](figs/GrowSP_animation5.gif)
 
-*Above: Demonstration of the process.*
+*Above: Demonstration of GrowSP.*
 
 ## Installation
 
