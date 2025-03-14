@@ -1,4 +1,4 @@
-# GrowSP: Unsupervised Semantic Segmentation of Construction Site Point Clouds
+# GrowSP: Unsupervised Semantic Segmentation of Real-World Construction Site Data
 
 This repository provides our implementation of GrowSP for unsupervised semantic segmentation of 3D construction site point clouds.
 The original GrowSP repository: https://github.com/vLAR-group/GrowSP
@@ -20,6 +20,8 @@ To get started:
    ```bash
    docker pull yarinpour/growsp_nvidia:latest
    ```
+
+   (alternatively you can build the image using the DockerFile provided)
 
 2. **Install Required Python Libraries**
 
