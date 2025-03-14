@@ -2,6 +2,12 @@
 
 This repository provides an implementation of unsupervised semantic segmentation for 3D construction site point clouds, adapted from the GrowSP approach. The main goal is to segment real-world point clouds without manual annotations, enabling efficient downstream tasks such as change detection and automated labeling support.
 
+## Demo
+
+![GrowSP Segmentation Demo](GrowSP_animation5.gif)
+
+*Above: Demonstration of the process.*
+
 ## Installation
 
 ### Docker Installation (Recommended)
