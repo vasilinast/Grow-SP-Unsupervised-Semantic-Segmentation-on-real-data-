@@ -44,7 +44,9 @@ A subset of our dataset is available here: [Download Dataset](https://tubcloud.t
 Prepare the dataset for training by running the pre-processing script:
 
 ```bash
-python data_prepare/pre_processing_full_pipeline.py --input_path <path to raw point clouds> --output_path <path where to save the outputs>
+python data_prepare/pre_processing_full_pipeline.py \
+--input_path <path to raw point clouds> \
+--output_path <path where to save the outputs>
 ```
 
 This command tiles each point cloud, removes ground points, and generates initial regions based on our method. The results are organized into two subdirectories under your specified output path:
@@ -58,7 +60,12 @@ A preprocessed dataset is also available here: [Preprocessed Dataset](https://tu
 Train the model with the following command. You can adjust hyperparameters as needed:
 
 ```bash
-python train_const_site_yarin.py --data_path <path to input_plys folder> --sp_path <path to input_superpoints folder> --save_path <path to save the model> --pseudo_label_path <path to save pseudo labels> --voxel_size 0.15 --primitive_num 300 --batch_size 8 --growsp_start 80 --growsp_end 30
+python train_const_site_yarin.py \
+--data_path <path to input_plys folder> \
+--sp_path <path to input_superpoints folder> \
+--save_path <path to save the model> \
+--pseudo_label_path <path to save pseudo labels> \
+--voxel_size 0.15 --primitive_num 300 --batch_size 8 --growsp_start 80 --growsp_end 30
 ```
 note that there are more hyperparameters that can be changed.
 The output model, evaluation scores (silhoutte, wcss) and a log file will be saved in the specified output directory.
@@ -70,7 +77,12 @@ Our trained models can be found here: [Trained Models](https://tubcloud.tu-berli
 For visual evaluation and inference on new point cloud data, run the following command. Make sure that the `primitive_num` and `voxel_size` parameters match those used during training. You can set the number of segmentation classes using the `semantic_class` argument:
 
 ```bash
-python post_processing_const_site.py --data_path <path to input point clouds in ply format> --save_path <path to the folder of the trained model> --vis_path <path to save the segmented point clouds> --semantic_class 18 --primitive_num 300 --voxel_size 0.3
+python post_processing_const_site.py
+--data_path <path to input point clouds in ply format> \
+--save_path <path to the folder of the trained model> \
+--vis_path <path to save the segmented point clouds> \
+--semantic_class 18 \
+--primitive_num 300 --voxel_size 0.3
 ```
 
 All of the segmented point clouds we used for visual evaluation are stored on the HPC at `/scratch/yarinp/vis`. The folder is divided into five subdirectories corresponding to different models we trained:
