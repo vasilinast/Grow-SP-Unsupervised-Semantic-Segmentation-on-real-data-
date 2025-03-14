@@ -4,7 +4,7 @@ This repository provides an implementation of unsupervised semantic segmentation
 
 ## Demo
 
-![GrowSP Segmentation Demo](GrowSP_animation5.gif)
+![GrowSP Segmentation Demo](figs/GrowSP_animation5.gif)
 
 *Above: Demonstration of the process.*
 
