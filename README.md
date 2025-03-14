@@ -87,3 +87,11 @@ For your reference, all segmented point clouds used for visual evaluation are st
 - `model_noground_v15`
 
 Each model folder contains further subdirectories for point cloud segmentations with varying numbers of classes.
+
+
+
+## SAMPLES ???
+
+![](figs/Models.gif)
+
+*Above: Demonstration of the selected models with RAW data.*
