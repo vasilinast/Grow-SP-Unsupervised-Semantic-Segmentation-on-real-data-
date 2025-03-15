@@ -103,4 +103,4 @@ Each model folder contains further subdirectories for point cloud segmentations 
 
 ![](figs/Models.gif)
 
-*Above: Comparative visualization showing segmentation results from three different models alongside the raw point cloud data. This visualization demonstrates how each model segments the construction site elements with varying levels of detail and accuracy.*
+*Above: Comparative visualization showing four views: Top Left - Raw point cloud data; Top Right - No Ground Model; Bottom Left - Model 300; Bottom Right - The Grow Model. This visualization demonstrates how each model segments the construction site elements with varying levels of detail and accuracy.*
