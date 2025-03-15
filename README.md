@@ -99,8 +99,8 @@ Each model folder contains further subdirectories for point cloud segmentations 
 
 
 
-## SAMPLES ???
+## Visual Model Comparison
 
 ![](figs/Models.gif)
 
-*Above: Demonstration of the selected models with RAW data.*
+*Above: Comparative visualization showing segmentation results from three different models alongside the raw point cloud data. This visualization demonstrates how each model segments the construction site elements with varying levels of detail and accuracy.*
