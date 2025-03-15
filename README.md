@@ -3,7 +3,7 @@
 This repository provides our implementation of GrowSP for unsupervised semantic segmentation of 3D construction site point clouds.
 The original GrowSP repository: https://github.com/vLAR-group/GrowSP
 
-## Demo
+
 
 ![GrowSP Segmentation Demo](figs/GrowSP_animation5.gif)
 
