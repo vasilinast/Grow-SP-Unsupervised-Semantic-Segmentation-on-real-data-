@@ -36,6 +36,9 @@ To get started:
    ```bash
    pip install laspy[lazrs,laszip]
    ```
+   ```bash
+   pip install cloth-simulation-filter
+   ```
 
 ## Running the Code
 
